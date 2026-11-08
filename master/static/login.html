@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 rx=%276%27 fill=%27%232563eb%27/%3E%3Cpath d=%27M17.5 12.6c0 3.4-2.4 5.1-5.2 6.1a.7.7 0 0 1-.5 0c-2.8-1-5.3-2.7-5.3-6.1V7.8a.7.7 0 0 1 .7-.7c1.4 0 3-.8 4.2-1.8a.8.8 0 0 1 1 0c1.2 1 2.9 1.8 4.3 1.8a.7.7 0 0 1 .7.7z%27 fill=%27none%27 stroke=%27white%27 stroke-width=%271.6%27/%3E%3C/svg%3E">
+<title>HideVP</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#2a313c;--text:#e6edf3;--muted:#8b949e;--accent:#3b82f6;--accent2:#2563eb;--tg:#2aabee}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:radial-gradient(1200px 600px at 50% -10%,#1b2a44 0,transparent 60%),var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px 16px}
+.box{width:100%;max-width:380px}
+.brand{text-align:center;margin-bottom:22px}
+.brand .logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:10px}
+.brand h1{font-size:24px;margin:0}
+.brand p{color:var(--muted);margin:4px 0 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+h2{font-size:18px;margin:0 0 6px}
+.muted{color:var(--muted);font-size:14px}
+label{display:block;font-size:13px;color:var(--muted);margin:16px 0 6px}
+input{width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--line);background:#0b0f14;color:var(--text);font-size:17px;outline:none;letter-spacing:.02em}
+input:focus{border-color:var(--accent)}
+input.code{text-align:center;font-size:26px;letter-spacing:.4em;font-family:ui-monospace,monospace}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:10px;border:0;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;margin-top:16px;color:#fff;background:var(--accent)}
+.btn:hover{background:var(--accent2)}
+.btn:disabled{opacity:.6;cursor:default}
+.btn.tg{background:var(--tg)}
+.btn.ghost{background:none;color:var(--muted);font-weight:500;margin-top:8px}
+.err{color:#fca5a5;font-size:14px;margin-top:10px;min-height:1px}
+.foot{text-align:center;color:var(--muted);font-size:13px;margin-top:16px}
+.foot a{color:var(--muted)}
+.hide{display:none}
+.lng{position:fixed;top:14px;right:14px;display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.lng button{border:0;background:#21262d;color:var(--muted);padding:6px 10px;font-size:13px;cursor:pointer}
+.lng button.on{background:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+<div class="lng"><button id="l_ru" onclick="setLang('ru')">RU</button><button id="l_en" onclick="setLang('en')">EN</button></div>
+<div class="box">
+  <div class="brand"><div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div><h1 id="title"></h1><p data-i="cab"></p></div>
+
+  <form class="card" id="step1">
+    <h2 data-i="h1"></h2>
+    <div class="muted" data-i="hint1"></div>
+    <label for="phone" data-i="phone"></label>
+    <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 900 000-00-00" required>
+    <div class="err" id="err1"></div>
+    <button class="btn" id="b1" data-i="get"></button>
+  </form>
+
+  <form class="card hide" id="step2">
+    <h2 data-i="h2"></h2>
+    <div class="muted"><span data-i="sent"></span> <b id="ph"></b>.</div>
+    <label for="code" data-i="code"></label>
+    <input id="code" class="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" required>
+    <div class="err" id="err2"></div>
+    <button class="btn" id="b2" data-i="login"></button>
+    <button class="btn ghost" type="button" id="resend" disabled data-i="resend"></button>
+    <button class="btn ghost" type="button" id="back" data-i="change"></button>
+  </form>
+
+  <div class="card hide" id="nouser">
+    <h2 data-i="h3"></h2>
+    <p class="muted"><span data-i="num"></span> <b id="ph2"></b> <span data-i="notlinked"></span></p>
+    <p class="muted" data-i="offer"></p>
+    <p class="muted" data-i="already"></p>
+    <a class="btn tg" id="tglink" target="_blank" rel="noopener" data-i="tg"></a>
+    <button class="btn ghost" type="button" id="back2" data-i="other"></button>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+const D = __DATA__;
+const $ = s => document.getElementById(s);
+const I = {
+  ru: {cab:"Личный кабинет", h1:"Вход по номеру телефона", hint1:"Код подтверждения придёт в наш Telegram-бот.", phone:"Номер телефона",
+       get:"Получить код", h2:"Введите код", sent:"Мы отправили код в Telegram на аккаунт с номером", code:"Код из Telegram", login:"Войти",
+       resend:"Отправить ещё раз", change:"Изменить номер", h3:"Подписка не найдена", num:"Номер", notlinked:"не привязан ни к одной подписке.",
+       offer:"Оформите подписку в нашем Telegram-боте — это займёт минуту. Оплата звёздами Telegram.",
+       already:"Уже пользуетесь ботом? Отправьте в нём команду /phone, чтобы привязать номер, и попробуйте снова.",
+       tg:"✈️ Оформить подписку в Telegram", other:"Ввести другой номер", support:"Поддержка", title:"вход", error:"Ошибка"},
+  en: {cab:"Personal account", h1:"Sign in with your phone number", hint1:"The confirmation code will be sent to our Telegram bot.", phone:"Phone number",
+       get:"Get code", h2:"Enter the code", sent:"We sent a code in Telegram to the account with number", code:"Code from Telegram", login:"Sign in",
+       resend:"Send again", change:"Change number", h3:"Subscription not found", num:"Number", notlinked:"is not linked to any subscription.",
+       offer:"Get a subscription in our Telegram bot — it takes a minute. Payment in Telegram Stars.",
+       already:"Already using the bot? Send /phone there to link your number, then try again.",
+       tg:"✈️ Get a subscription in Telegram", other:"Enter another number", support:"Support", title:"sign in", error:"Error"},
+};
+let LANG = (() => { try { return localStorage.getItem("hv_ulang"); } catch(e) { return null; } })()
+  || D.lang || ((navigator.language || "").toLowerCase().startsWith("ru") ? "ru" : "en");
+const t = k => (I[LANG] || I.ru)[k];
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i]").forEach(el => el.textContent = t(el.dataset.i));
+  $("l_ru").classList.toggle("on", LANG === "ru"); $("l_en").classList.toggle("on", LANG === "en");
+  $("title").textContent = D.title;
+  document.title = D.title + " — " + t("title");
+  $("foot").textContent = D.support ? t("support") + ": " + D.support : "";
+}
+function setLang(l){ LANG = l; try { localStorage.setItem("hv_ulang", l); } catch(e) {} applyLang(); }
+applyLang();
+let phone = "", timer;
+
+$("phone").addEventListener("input", e => {
+  let d = e.target.value.replace(/\D/g, "");
+  if (d.startsWith("8")) d = "7" + d.slice(1);
+  if (d && !d.startsWith("7")) { e.target.value = "+" + d; return; }
+  d = d.slice(0, 11);
+  let s = "+7";
+  if (d.length > 1) s += " " + d.slice(1, 4);
+  if (d.length > 4) s += " " + d.slice(4, 7);
+  if (d.length > 7) s += "-" + d.slice(7, 9);
+  if (d.length > 9) s += "-" + d.slice(9, 11);
+  e.target.value = d ? s : "";
+});
+
+async function post(url, body) {
+  const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json", "X-Lang": LANG}, body: JSON.stringify(body)});
+  let d = {}; try { d = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(d.error || t("error") + " " + r.status);
+  return d;
+}
+function show(id) { ["step1", "step2", "nouser"].forEach(x => $(x).classList.toggle("hide", x !== id)); }
+function countdown(sec) {
+  clearInterval(timer);
+  const b = $("resend"); b.disabled = true;
+  const tick = () => { if (sec <= 0) { clearInterval(timer); b.disabled = false; b.textContent = t("resend"); return; } b.textContent = `${t("resend")} (${sec--})`; };
+  tick(); timer = setInterval(tick, 1000);
+}
+async function requestCode() {
+  $("err1").textContent = ""; $("b1").disabled = true;
+  try {
+    const d = await post("/api/auth/request", {phone});
+    if (d.status === "not_found") {
+      $("ph2").textContent = $("phone").value;
+      if (d.bot) $("tglink").href = d.bot + "?start=site"; else $("tglink").classList.add("hide");
+      show("nouser");
+    } else {
+      $("ph").textContent = $("phone").value; show("step2"); $("code").value = ""; $("code").focus(); countdown(d.wait || 60);
+    }
+  } catch (e) { $("err1").textContent = e.message; $("err2").textContent = e.message; }
+  $("b1").disabled = false;
+}
+$("step1").onsubmit = e => { e.preventDefault(); phone = $("phone").value; requestCode(); };
+$("resend").onclick = requestCode;
+$("back").onclick = $("back2").onclick = () => { show("step1"); $("phone").focus(); };
+$("code").addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6); if (e.target.value.length === 6) $("step2").requestSubmit(); });
+$("step2").onsubmit = async e => {
+  e.preventDefault(); $("err2").textContent = ""; $("b2").disabled = true;
+  try { const d = await post("/api/auth/verify", {phone, code: $("code").value}); location.href = d.redirect; }
+  catch (err) { $("err2").textContent = err.message; $("b2").disabled = false; }
+};
+</script>
+</body>
+</html>

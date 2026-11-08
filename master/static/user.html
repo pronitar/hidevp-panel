@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 rx=%276%27 fill=%27%232563eb%27/%3E%3Cpath d=%27M17.5 12.6c0 3.4-2.4 5.1-5.2 6.1a.7.7 0 0 1-.5 0c-2.8-1-5.3-2.7-5.3-6.1V7.8a.7.7 0 0 1 .7-.7c1.4 0 3-.8 4.2-1.8a.8.8 0 0 1 1 0c1.2 1 2.9 1.8 4.3 1.8a.7.7 0 0 1 .7.7z%27 fill=%27none%27 stroke=%27white%27 stroke-width=%271.6%27/%3E%3C/svg%3E">
+<meta name="robots" content="noindex">
+<title>Моя подписка</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#2a313c;--text:#e6edf3;--muted:#8b949e;--accent:#3b82f6;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:22px;margin:4px 0 2px}
+.sub{color:var(--muted);margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0}
+.row span:first-child{color:var(--muted)}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:600}
+.b-active{background:#14532d;color:#86efac}.b-new,.b-expired,.b-traffic,.b-suspended,.b-disabled{background:#4c1d1d;color:#fca5a5}
+.bar{height:8px;background:#0b0f14;border-radius:99px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.big{font-size:28px;font-weight:700}
+.btn{display:block;width:100%;text-align:center;padding:13px;border-radius:10px;border:0;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;margin-top:10px}
+.btn-p{background:var(--accent);color:#fff}.btn-s{background:#21262d;color:var(--text);border:1px solid var(--line)}
+.qr{display:flex;justify-content:center;padding:10px;background:#fff;border-radius:12px;margin:12px auto 0;max-width:260px}.qr svg{width:100%;height:auto;display:block}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.top a{color:var(--muted);font-size:14px;text-decoration:none}
+.tools{display:flex;gap:10px;align-items:center;padding-top:6px}
+.lng{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.lng button{border:0;background:#21262d;color:var(--muted);padding:5px 9px;font-size:12px;cursor:pointer}
+.lng button.on{background:var(--accent);color:#fff}
+.link{font-family:ui-monospace,monospace;font-size:12px;word-break:break-all;color:var(--muted);background:#0b0f14;padding:10px;border-radius:8px;margin-top:10px}
+.servers{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.servers span{background:#21262d;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:14px;display:inline-flex;align-items:center;gap:7px}
+.fl{display:inline-block;width:20px;height:15px;border-radius:2px;background-size:cover;background-position:center;box-shadow:0 0 0 1px var(--line)}
+.stores{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stores a{margin-top:0}
+h2{font-size:16px;margin:0 0 6px}
+.muted{color:var(--muted);font-size:13px}
+.ntc{display:flex;gap:10px;align-items:flex-start;border-radius:14px;padding:12px 14px;margin-bottom:12px;border:1px solid var(--line);background:#16202e}
+.ntc.maintenance{background:#2a2110;border-color:#5c4511}.ntc.warning{background:#2b1414;border-color:#6b2020}
+.ntc .i{font-size:18px;line-height:1.3}.ntc .x{white-space:pre-wrap;line-height:1.45}.ntc .u{color:var(--muted);font-size:12px;margin-top:4px}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px;margin-top:10px}
+.plans button{border:1px solid var(--line);background:#21262d;color:var(--text);border-radius:10px;padding:9px 4px;font-size:14px;cursor:pointer}
+.plans button.on{border-color:var(--accent);background:#0f1d33}
+.pay{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pay s{color:var(--muted);font-weight:400;font-size:13px;margin-right:6px}
+.err{color:#fca5a5;font-size:13px;margin-top:8px;min-height:1px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#21262d;border:1px solid var(--line);padding:10px 16px;border-radius:10px;opacity:0;transition:.2s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+const D = __DATA__;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let LANG = (() => { try { return localStorage.getItem("hv_ulang"); } catch(e) { return null; } })() || D.lang || "ru";
+const I = {
+  ru: {sub:"подписка", logout:"Выйти", status:"Статус", until:"Действует до", left:"Осталось дней", devices:"Устройства онлайн", of:"из",
+       traffic:"Трафик", unlimited:"без ограничений", connect:"Подключение", connect_hint:"Нажмите кнопку на устройстве, где установлено приложение {app}, или отсканируйте QR-код в нём.",
+       app:"Приложение", add:"Добавить в {app}", copy:"Скопировать ссылку подписки", copied:"Скопировано", servers:"Серверы", download:"Скачать {app}",
+       ntill:"до", renew:"Продлить в боте", support:"Поддержка", buy:"Продлить подписку", mo:{1:"1 мес",2:"2 мес",3:"3 мес",6:"6 мес",9:"9 мес",12:"12 мес",24:"24 мес"},
+       m:{stars:"⭐ Звёздами Telegram",card:"💳 Картой",crypto:"💎 Криптовалютой",manual:"🏦 Переводом"}, sent:"Реквизиты отправлены вам в Telegram-бот.", promo:"Промокод", wait:"Создаю счёт…",
+       pay_hint:"Оплата откроется в Telegram. Подписка продлится автоматически.", free:"По вашему промокоду подписка бесплатна — активируйте её в боте.", units:["Б","КБ","МБ","ГБ","ТБ"],
+       st:{active:"Активна", new:"Нет подписки", expired:"Истекла", traffic:"Лимит трафика", suspended:"Превышено число устройств", disabled:"Заблокирован"}},
+  en: {sub:"subscription", logout:"Log out", status:"Status", until:"Valid until", left:"Days left", devices:"Devices online", of:"of",
+       traffic:"Traffic", unlimited:"unlimited", connect:"Connection", connect_hint:"Tap the button on the device with {app} installed, or scan the QR code in it.",
+       app:"App", add:"Add to {app}", copy:"Copy subscription link", copied:"Copied", servers:"Servers", download:"Download {app}",
+       ntill:"until", renew:"Renew in the bot", support:"Support", buy:"Renew subscription", mo:{1:"1 mo",2:"2 mo",3:"3 mo",6:"6 mo",9:"9 mo",12:"12 mo",24:"24 mo"},
+       m:{stars:"⭐ Telegram Stars",card:"💳 By card",crypto:"💎 Crypto",manual:"🏦 Bank transfer"}, sent:"The payment details were sent to you in the Telegram bot.", promo:"Promo code", wait:"Creating the invoice…",
+       pay_hint:"Payment opens in Telegram. The subscription renews automatically.", free:"Your promo code makes the subscription free — activate it in the bot.", units:["B","KB","MB","GB","TB"],
+       st:{active:"Active", new:"No subscription", expired:"Expired", traffic:"Traffic limit reached", suspended:"Too many devices", disabled:"Blocked"}},
+};
+function t(k){ return (I[LANG] || I.ru)[k]; }
+function fmt(b){b=+b||0;const u=t("units");let i=0;while(b>=1024&&i<4){b/=1024;i++}return (i<2?b.toFixed(0):b.toFixed(2))+" "+u[i]}
+function setLang(l){
+  LANG = l; try { localStorage.setItem("hv_ulang", l); } catch(e) {}
+  fetch(location.pathname + "/lang", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({lang: l})}).catch(()=>{});
+  render();
+}
+function render(){
+  const pct = D.limit ? Math.min(100, D.used / D.limit * 100) : 0;
+  const A = APPS[APP];
+  const expires = D.forever ? (LANG === "en" ? "Lifetime" : "Бессрочно") : D.expires;
+  document.documentElement.lang = LANG;
+  document.title = D.title + " — " + t("sub");
+  document.getElementById("toast").textContent = t("copied");
+  document.getElementById("app").innerHTML = `
+  <div class="top"><div><h1>${esc(D.title)}</h1><div class="sub">${esc(D.name)}</div></div>
+    <div class="tools"><div class="lng"><button class="${LANG==="ru"?"on":""}" onclick="setLang('ru')">RU</button><button class="${LANG==="en"?"on":""}" onclick="setLang('en')">EN</button></div>${D.logged_in ? `<a href="/logout">${t("logout")}</a>` : ""}</div></div>
+
+  ${(D.notices||[]).map(n=>`<div class="ntc ${n.kind}"><span class="i">${n.icon}</span><div><div class="x">${esc(LANG==="en"&&n.text_en?n.text_en:n.text)}</div>${n.ends_at?`<div class="u">${t("ntill")} ${new Date(n.ends_at*1000).toLocaleString(LANG==="en"?"en-GB":"ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>`:""}</div></div>`).join("")}
+  <div class="card">
+    <div class="row"><span>${t("status")}</span><span class="badge b-${D.status}">${esc(t("st")[D.status] || D.status)}</span></div>
+    <div class="row"><span>${t("until")}</span><b>${esc(expires)}</b></div>
+    ${D.forever ? "" : D.expires_ts ? `<div class="row"><span>${t("left")}</span><b>${D.days_left}</b></div>` : ""}
+    <div class="row"><span>${t("devices")}</span><b>${D.devices}${D.device_limit ? " " + t("of") + " " + D.device_limit : ""}</b></div>
+  </div>
+
+  ${(D.plans||[]).length ? `<div class="card"><h2>${t("buy")}</h2>
+    ${D.promo ? `<div class="muted">🎟 ${t("promo")} <b>${esc(D.promo.code)}</b>: −${D.promo.discount}%</div>` : ""}
+    <div class="plans">${D.plans.map((p,i)=>`<button class="${i===PLAN?"on":""}" onclick="PLAN=${i};render()">${t("mo")[p.months]||p.months}</button>`).join("")}</div>
+    ${(D.plans[PLAN]||D.plans[0]).options.map(o=>`<button class="btn btn-s pay" onclick="buy('${o.method}',${(D.plans[PLAN]||D.plans[0]).months},this)"><span>${t("m")[o.method]||esc(o.method)}</span><b>${o.discount?`<s>${esc(o.full)}</s>`:""}${esc(o.price)}</b></button>`).join("")}
+    <div class="err" id="payerr"></div><div class="muted">${t("pay_hint")}</div>
+    ${D.bot ? `<a class="btn btn-s" href="https://t.me/${esc(D.bot)}" target="_blank" rel="noopener">✈️ ${t("renew")}</a>` : ""}</div>` : ""}
+
+  <div class="card">
+    <h2>${t("traffic")}</h2>
+    <div class="big">${fmt(D.used)}</div>
+    <div class="muted">${D.limit ? t("of") + " " + fmt(D.limit) : t("unlimited")} · ↑ ${fmt(D.up)} · ↓ ${fmt(D.down)}</div>
+    ${D.limit ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}
+  </div>
+
+  <div class="card">
+    <h2>${t("connect")}</h2>
+    <div class="plans apps">${Object.keys(APPS).map(k=>`<button class="${k===APP?"on":""}" onclick="setApp('${k}')">${APPS[k].name}</button>`).join("")}</div>
+    <div class="muted" style="margin-top:10px">${t("connect_hint").replace("{app}", A.name)}</div>
+    <a class="btn btn-p" href="${esc(D[APP])}">${t("add").replace("{app}", A.name)}</a>
+    <button class="btn btn-s" onclick="copy()">${t("copy")}</button>
+    <div class="qr">${D.qr}</div>
+    <div class="link">${esc(D.sub_url)}</div>
+  </div>
+
+  ${D.servers.length ? `<div class="card"><h2>${t("servers")}</h2><div class="servers">${D.servers.map(s=>`<span>${s.cc ? `<i class="fl" style="background-image:url('/assets/flags/${s.cc}.svg')"></i>` : ""}${esc(s.name)}</span>`).join("")}</div></div>` : ""}
+
+  <div class="card">
+    <h2>${t("download").replace("{app}", A.name)}</h2>
+    <div class="stores">${A.stores.map(([n,u])=>`<a class="btn btn-s" href="${u}" target="_blank" rel="noopener">${n}</a>`).join("")}</div>
+    ${D.support ? `<p class="muted">${t("support")}: ${esc(D.support)}</p>` : ""}
+  </div>`;
+}
+let PLAN = 0;
+const APPS = {
+  happ: {name: "Happ", stores: [["iPhone / iPad", "https://apps.apple.com/search?term=happ%20proxy%20utility"],
+    ["Android", "https://play.google.com/store/search?q=happ%20proxy%20utility&c=apps"],
+    ["Windows / macOS", "https://github.com/Happ-proxy/happ-desktop/releases/latest"]]},
+  incy: {name: "INCY", stores: [["iPhone / iPad", "https://apps.apple.com/app/incy/id6756943388"],
+    ["Android", "https://play.google.com/store/apps/details?id=llc.itdev.incy"],
+    ["Windows / macOS", "https://github.com/INCY-DEV/incy-platforms/releases"]]},
+};
+let APP = (() => { try { const a = localStorage.getItem("hv_app"); return APPS[a] ? a : "happ"; } catch(e) { return "happ"; } })();
+function setApp(a){ APP = a; try { localStorage.setItem("hv_app", a); } catch(e) {} render(); }
+async function buy(method, months, btn){
+  const err = document.getElementById("payerr"); err.textContent = ""; const old = btn.innerHTML; btn.disabled = true; btn.textContent = t("wait");
+  try {
+    const r = await fetch(location.pathname + "/pay", {method:"POST", headers:{"Content-Type":"application/json","X-Lang":LANG}, body: JSON.stringify({method, months})});
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(d.error || "Error " + r.status);
+    if (d.free) { err.textContent = t("free"); if (d.bot) location.href = d.bot; }
+    else if (d.url) { if (method === "manual") err.textContent = t("sent"); location.href = d.url; }
+  } catch(e) { err.textContent = e.message; }
+  btn.disabled = false; btn.innerHTML = old;
+}
+function copy(){
+  const done = () => { const el = document.getElementById("toast"); el.classList.add("show"); setTimeout(()=>el.classList.remove("show"), 1500); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(D.sub_url).then(done);
+  else { const a = document.createElement("textarea"); a.value = D.sub_url; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); done(); }
+}
+render();
+</script>
+</body>
+</html>

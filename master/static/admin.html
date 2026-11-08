@@ -1,0 +1,1472 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 rx=%276%27 fill=%27%232563eb%27/%3E%3Cpath d=%27M17.5 12.6c0 3.4-2.4 5.1-5.2 6.1a.7.7 0 0 1-.5 0c-2.8-1-5.3-2.7-5.3-6.1V7.8a.7.7 0 0 1 .7-.7c1.4 0 3-.8 4.2-1.8a.8.8 0 0 1 1 0c1.2 1 2.9 1.8 4.3 1.8a.7.7 0 0 1 .7.7z%27 fill=%27none%27 stroke=%27white%27 stroke-width=%271.6%27/%3E%3C/svg%3E">
+<meta name="robots" content="noindex">
+<title>HideVP</title>
+<script>window.PANEL_LANG="__PANEL_LANG__";try{document.documentElement.setAttribute("data-theme",localStorage.getItem("hv_theme")||"dark")}catch(e){}</script>
+<style>
+:root,[data-theme=dark]{--bg:#0b0e13;--side:#10141b;--card:#151a22;--card2:#1b212b;--line:#262d38;--text:#e6edf3;--muted:#8b949e;--accent:#3b82f6;--accent2:#2563eb;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;
+  --input:#0e1218;--hover:#3a4350;--segon:#0f1d33;--okbg:#14341f;--okfg:#86efac;--neubg:#262d38;--neufg:#c9d1d9;--warnbg:#3d2a0b;--warnfg:#fcd34d;--badbg:#3d1414;--badfg:#fca5a5;--shadow:rgba(0,0,0,.4);color-scheme:dark}
+[data-theme=light]{--bg:#f4f6fa;--side:#ffffff;--card:#ffffff;--card2:#eef2f7;--line:#dde3eb;--text:#111827;--muted:#64748b;--accent:#2563eb;--accent2:#1d4ed8;
+  --input:#ffffff;--hover:#b8c2d0;--segon:#e7efff;--okbg:#dcfce7;--okfg:#166534;--neubg:#eef1f5;--neufg:#334155;--warnbg:#fef3c7;--warnfg:#92400e;--badbg:#fee2e2;--badfg:#b91c1c;--shadow:rgba(15,23,42,.12);color-scheme:light}
+[data-theme=green]{--bg:#06110b;--side:#0a1811;--card:#0e1f17;--card2:#13291e;--line:#1e3a2b;--text:#e2f5e9;--muted:#8db39d;--accent:#22c55e;--accent2:#16a34a;
+  --input:#07140e;--hover:#2f5a43;--segon:#0e2e1c;--okbg:#14341f;--okfg:#86efac;--neubg:#1e3a2b;--neufg:#c7e3d2;--warnbg:#3d2a0b;--warnfg:#fcd34d;--badbg:#3d1414;--badfg:#fca5a5;--shadow:rgba(0,0,0,.45);color-scheme:dark}
+[data-theme=red]{--bg:#12080a;--side:#190b0e;--card:#211013;--card2:#2a1418;--line:#3e1c22;--text:#f8e7e9;--muted:#b8949a;--accent:#ef4444;--accent2:#dc2626;
+  --input:#150a0c;--hover:#5a2a31;--segon:#3a1217;--okbg:#14341f;--okfg:#86efac;--neubg:#3e1c22;--neufg:#e9cfd3;--warnbg:#3d2a0b;--warnfg:#fcd34d;--badbg:#4a1218;--badfg:#fda4af;--shadow:rgba(0,0,0,.45);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+.layout{display:flex;min-height:100vh}
+aside{width:220px;background:var(--side);border-right:1px solid var(--line);padding:18px 12px;flex-shrink:0;display:flex;flex-direction:column}
+.logo{font-weight:700;font-size:17px;padding:4px 10px 18px}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:none;border-radius:8px;cursor:pointer;text-align:left;color:var(--muted);margin-bottom:2px}
+.nav button:hover{background:var(--card)}
+.nav button.on{background:var(--card2);color:var(--text)}
+.nav .ic{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.svg{display:block;flex-shrink:0}
+.btn .svg{width:16px;height:16px}
+.fl{display:inline-block;width:1.4em;height:1.05em;border-radius:3px;background-size:cover;background-position:center;vertical-align:-0.15em;box-shadow:0 0 0 1px var(--line);flex-shrink:0}
+.fl.none{background:none;box-shadow:none;color:var(--muted);vertical-align:-0.2em}
+.flag .fl,.node .fl{width:28px;height:21px;vertical-align:middle}
+.fln{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.sti{display:inline-flex}.sti-ok{color:var(--ok)}.sti-warn{color:var(--warn)}.sti-fail{color:var(--bad)}
+.spin .svg,.spin{animation:sp 1s linear infinite}
+aside .bottom{margin-top:auto}
+main{flex:1;padding:0 28px 24px;min-width:0}
+.topbar{position:sticky;top:0;z-index:20;display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:12px 0;margin-bottom:6px;background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar .st{color:var(--muted);font-size:12px;margin-right:auto}
+.segbtn{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.segbtn button{border:0;background:var(--card2);padding:7px 10px;cursor:pointer;color:var(--muted);font-size:13px}
+.segbtn button.on{background:var(--accent);color:#fff}
+.thp{position:relative}
+.thp .cur{width:32px;height:32px;border-radius:50%;border:2px solid var(--muted);cursor:pointer;padding:0;display:block;box-shadow:inset 0 0 0 3px var(--card2)}
+.thp .cur:hover{border-color:var(--hover)}
+.thp .menu{position:absolute;right:0;top:40px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px;min-width:170px;z-index:40;box-shadow:0 10px 30px var(--shadow);display:none}
+.thp.open .menu{display:block}
+.thp .menu button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;background:none;border-radius:7px;cursor:pointer;color:var(--text);text-align:left}
+.thp .menu button:hover{background:var(--card2)}
+.thp .menu button.on{background:var(--segon)}
+.thp .dot{width:16px;height:16px;border-radius:50%;border:1px solid var(--line);flex-shrink:0}
+.meter{display:grid;grid-template-columns:58px 1fr auto;align-items:center;gap:8px;font-size:12px;margin:5px 0}
+.meter .bar{height:7px;background:var(--input);border-radius:99px;overflow:hidden}
+.meter .bar i{display:block;height:100%;border-radius:99px;background:var(--ok)}
+.meter .bar i.mid{background:var(--warn)}.meter .bar i.hi{background:var(--bad)}
+.meter .v{text-align:right;color:var(--muted);white-space:nowrap;font-size:11.5px}
+.vers{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+.bedit{display:flex;flex-direction:column;gap:8px}
+.brow{display:grid;grid-template-columns:auto auto 1fr 1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card2)}
+.brow.off{opacity:.55}
+.brow .mv{display:flex;flex-direction:column;gap:2px}
+.brow .mv button{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:6px;width:26px;height:20px;line-height:1;cursor:pointer;padding:0;font-size:11px}
+.brow .mv button:disabled{opacity:.35;cursor:default}
+.brow input[type=text]{padding:7px 9px}
+.brow .meta{grid-column:3/6;display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
+.brow .meta label{display:inline-flex;align-items:center;gap:5px;margin:0;font-size:12px;cursor:pointer}
+.brow .extra{grid-column:1/6}
+.brow .tag{font-size:11px;padding:2px 7px;border-radius:6px;background:var(--card);border:1px solid var(--line);color:var(--muted)}
+.brow.joined{margin-top:-4px;border-top-left-radius:0;border-top-right-radius:0;border-left:3px solid var(--accent)}
+@media (max-width:720px){.brow{grid-template-columns:auto auto 1fr}.brow input.en{grid-column:3}.brow .meta{grid-column:1/4}}
+.tgwrap{position:sticky;top:76px}
+.tgphone{background:#0e1621;border-radius:16px;padding:14px;border:1px solid var(--line);max-width:380px}
+.tgmsg{background:#182533;color:#e9eef3;border-radius:12px 12px 12px 4px;padding:9px 12px;font-size:14px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.tgmsg a{color:#6ab3f3}
+.tgmsg code{font-family:ui-monospace,monospace;font-size:13px;color:#e9a46e}
+.tgkb{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.tgkb .r{display:flex;gap:4px}
+.tgkb .b{flex:1;background:rgba(43,82,120,.55);color:#fff;border-radius:8px;padding:8px 6px;text-align:center;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default}
+.tgkb .b.u::after{content:" ↗";opacity:.7;font-size:11px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chips button{border:1px dashed var(--line);background:none;color:var(--muted);border-radius:6px;padding:3px 8px;font:12px ui-monospace,monospace;cursor:pointer}
+.chips button:hover{color:var(--text);border-color:var(--accent)}
+.ptbl td,.ptbl th{padding:6px 8px}.ptbl input[type=number]{padding:7px 9px;max-width:140px}.ptbl tr.off input[type=number]{opacity:.4}
+.pmeth{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;background:var(--card2)}
+.pmeth.off{opacity:.7}.pmh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.badge.b-off{background:var(--neubg);color:var(--neufg)}
+.addm{position:relative}.addm .menu{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px;min-width:280px;box-shadow:0 10px 30px var(--shadow)}
+.addm.open .menu{display:block}.addm .menu button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;border:0;background:none;color:var(--text);padding:9px 10px;border-radius:8px;cursor:pointer;text-align:left}
+.addm .menu button:hover{background:var(--card2)}
+.notice .nh{display:flex;align-items:center;gap:8px}.notice .ni{font-size:18px}.notice .nh .badge{margin-left:auto}
+.notice .nt{white-space:pre-wrap;margin-top:8px}.notice.ended,.notice.off{opacity:.65}
+.warnbox{background:var(--warnbg,#3a2a0a);color:var(--warnfg,#fbbf24);border-radius:8px;padding:8px 10px;font-size:13px;display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap}
+.warnbox a{color:inherit;text-decoration:underline}.admlist{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.chart{width:100%;height:auto;display:block}.chart .bar{fill:var(--accent)}.chart .bar:hover{fill:var(--accent2)}
+.chart .gl{stroke:var(--line);stroke-width:1}.chart .ax{fill:var(--muted);font-size:11px}
+.sfil{display:flex;flex-direction:column;gap:10px}.sfr{display:flex;flex-wrap:wrap;gap:8px}.sfr input[type=search]{flex:1 1 260px}
+.sfr select{flex:0 1 auto;width:auto}.sfd{display:flex;gap:8px;align-items:center}.sfd input{width:auto}
+tr.clk,td.clk{cursor:pointer}tr.clk:hover td,td.clk:hover{color:var(--accent)}
+.vtag{font-size:11px;padding:3px 8px;border-radius:6px;background:var(--card2);border:1px solid var(--line);color:var(--muted)}
+.vtag b{color:var(--text);font-weight:600}
+.vtag.old{border-color:var(--warn);color:var(--warnfg)}
+.btn.don{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.btn.don:hover{filter:brightness(1.1)}
+.btn.upd{background:#16a34a;border-color:#16a34a;color:#fff}
+.btn.upd:hover{background:#15803d;border-color:#15803d}
+.verchip{position:relative;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--muted);font:600 12px/1 inherit;cursor:pointer;flex-shrink:0}
+.verchip:hover{color:var(--text);border-color:var(--accent)}
+.verchip.has{color:var(--text);border-color:#16a34a}
+.verchip .dot{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#16a34a;color:#fff}
+.slist .srow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px 0;border-top:1px solid var(--line)}
+.slist .srow:first-child{border-top:0;padding-top:4px}
+.slist .sn{flex:1 1 180px;min-width:0}.slist .sv{flex:0 0 auto}.slist .sa{margin-left:auto;justify-content:flex-end}
+.vtag{white-space:nowrap}
+.bkparts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:2px 16px;margin-top:6px}
+.bkparts .check{align-items:flex-start;margin-top:8px}.bkparts input{margin-top:3px}
+.warnbox.risk{flex-wrap:nowrap;gap:10px;padding:12px;border:1px solid var(--warn);line-height:1.45}
+.warnbox.risk > .sti{flex-shrink:0;margin-top:1px}
+.notes{white-space:pre-wrap;font-family:inherit;margin:8px 0 0;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;margin-top:8px;max-height:220px;overflow:auto}
+pre.ulog{white-space:pre-wrap;background:#0b0f14;color:#c9d1d9;border-radius:8px;padding:10px;font-size:12px;max-height:280px;overflow:auto;margin:10px 0 0}
+.login-tools{position:fixed;top:12px;right:12px;display:flex;gap:8px}
+.spin{display:inline-flex;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+.diag{list-style:none;padding:0;margin:8px 0 0}
+.diag li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.diag .i{width:20px;flex-shrink:0;text-align:center}
+.diag .d{font-size:12px;color:var(--muted);word-break:break-word}
+.diag .h{font-size:12px;color:var(--warnfg);margin-top:2px}
+pre.log{background:var(--input);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+h1{font-size:22px;margin:0}
+h3{margin:0 0 10px;font-size:15px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.grid{display:grid;gap:14px}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.tile .v{font-size:26px;font-weight:700;margin-top:2px}
+.tile .l{color:var(--muted);font-size:13px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card2);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--hover)}
+a.btn{text-decoration:none;color:inherit}a.btn.p{color:#fff}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.p:hover{background:var(--accent2)}
+.btn.d{color:var(--badfg)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--card2)}
+.tbl{overflow-x:auto}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.s-active,.s-online{background:var(--okbg);color:var(--okfg)}
+.s-new,.s-unknown{background:var(--neubg);color:var(--neufg)}
+.s-expired,.s-traffic,.s-suspended{background:var(--warnbg);color:var(--warnfg)}
+.s-disabled,.s-offline,.s-error{background:var(--badbg);color:var(--badfg)}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.flag{font-size:20px;line-height:1}
+.nodes{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.node .top{display:flex;gap:10px;align-items:center}
+.node .name{font-weight:600;font-size:15px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:12px 0;font-size:13px}
+.kv span:nth-child(odd){color:var(--muted)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+input[type=text],input[type=number],input[type=password],input[type=datetime-local],select,textarea{width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--input);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.check{display:flex;align-items:center;gap:8px;margin:12px 0 0;color:var(--text);cursor:pointer}
+.check input{width:16px;height:16px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg label{margin:0;border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer;color:var(--text)}
+.seg label.on{border-color:var(--accent);background:var(--segon)}
+.seg b{display:block}
+.seg input{display:none}
+.hint{font-size:12px;color:var(--muted);margin-top:5px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:50}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:14px;width:100%;max-width:640px;padding:20px}
+.modal .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.modal .mh h2{margin:0;font-size:18px}
+.modal .mf{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap}
+.x{background:none;border:0;font-size:22px;cursor:pointer;color:var(--muted)}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--card2);border:1px solid var(--line);padding:11px 16px;border-radius:10px;z-index:99;max-width:380px;box-shadow:0 8px 30px var(--shadow)}
+.toast.err{border-color:var(--bad);color:var(--badfg)}
+.login{max-width:360px;margin:12vh auto;padding:0 16px}
+.login .card{padding:24px}
+.copy{display:flex;gap:6px;align-items:center}
+.copy input{flex:1}
+.sep{border:0;border-top:1px solid var(--line);margin:18px 0}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filters input{width:240px}
+.filters select{width:auto}
+.empty{text-align:center;color:var(--muted);padding:40px 10px}
+.progress{height:6px;background:var(--input);border-radius:99px;overflow:hidden;margin-top:4px;width:110px}
+.progress i{display:block;height:100%;background:var(--accent)}
+.burger{display:none}
+.burger .cur{font-weight:600;margin-left:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.navsearch{display:none}
+.navshade{display:none}
+@media (max-width:800px){
+  main{padding:0 16px 16px}
+  .topbar .st{display:none}
+  .topbar{flex-wrap:nowrap;justify-content:flex-end;gap:8px}
+  .topbar .lbl{display:none}
+  .burger{display:inline-flex;margin-right:auto;flex:0 1 auto;min-width:0;justify-content:flex-start}
+  .topbar > *:not(.burger){flex-shrink:0}
+  aside{position:fixed;top:0;left:0;bottom:0;z-index:60;width:min(290px,84vw);transform:translateX(-102%);transition:transform .22s ease;
+        box-shadow:0 0 40px var(--shadow);overflow-y:auto;padding:14px 12px calc(14px + env(safe-area-inset-bottom))}
+  body.navopen aside{transform:none}
+  body.navopen{overflow:hidden}
+  .navshade{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.45)}
+  body.navopen .navshade{display:block}
+  .navsearch{display:block;margin:4px 0 10px}
+  .navsearch input{padding:9px 11px}
+  .nav button{padding:11px 12px;font-size:15px}
+  .nav button.hide{display:none}
+  .row2,.row4,.seg{grid-template-columns:1fr 1fr}
+  .filters input{width:100%}
+}
+@media (max-width:430px){ .burger .cur{display:none} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const BASE = location.pathname.replace(/\/?$/, "/");
+const API = BASE + "api/";
+const $ = s => document.querySelector(s);
+
+const ICON = {
+  overview: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  nodes: '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/>',
+  vpns: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  promos: '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/>',
+  settings: '<path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
+  pay: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',
+  bot: '<path d="M14.54 21.69a.5.5 0 0 0 .94-.03l6.5-19a.5.5 0 0 0-.64-.64l-19 6.5a.5.5 0 0 0-.03.94l7.93 3.18a2 2 0 0 1 1.11 1.11z"/><path d="m21.85 2.15-10.94 10.94"/>',
+  backup: '<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+  reload: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+  updates: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M12 8v5l3 2"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  stats: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9M13 17V5M8 17v-3"/>',
+  notices: '<path d="M10.27 21a2 2 0 0 0 3.46 0M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/>',
+  heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  ok: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  fail: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+  warn: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
+};
+function ic(name, size){ return `<svg class="svg" width="${size||18}" height="${size||18}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]||""}</svg>`; }
+function stIcon(st){ return `<span class="sti sti-${st}">${ic(st==="ok"?"ok":st==="warn"?"warn":"fail", 18)}</span>`; }
+const DONATE = {
+  boosty: "https://boosty.to/pronitar/donate",
+  crypto: [["TON","UQCEpLG3CGuwFGlfwy2UkTEkYbr5sy4TUIlBi33HA0MgoFZH"],
+           ["ETH","0x116414f271E19A2ccEdf8F9069206b97603e048F"],
+           ["BTC","bc1q8cqyc7mp7yw98kxyr2qt4m3zxghsdz5jp0nny2"]],
+};
+const THEMES = [["dark","#1b212b","Тёмная"],["light","#f4f6fa","Светлая"],["green","#22c55e","Зелёная"],["red","#ef4444","Красная"]];
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e) { return null; } }
+function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e) {} }
+let LANG = lsGet("hv_lang") || (window.PANEL_LANG === "en" ? "en" : "ru");
+let THEME = lsGet("hv_theme") || "dark";
+document.documentElement.setAttribute("data-theme", THEME);
+document.documentElement.lang = LANG;
+const EN = {"ГБ": "GB", "КБ": "KB", "МБ": "MB", "ТБ": "TB", "До": "Until", "дн": "d", "Имя": "Name", "бот": "bot", "нет": "none", "Вход": "Sign in", "Дата": "Date", "Порт": "Port", "блок": "blocked", "мес.": "mo.", "мес.,": "mo.,", "Войти": "Sign in", "Выйти": "Log out", "Логин": "Login", "Обзор": "Overview", "Общие": "General", "Связь": "Connection", "Связь:": "Connection:", "Снять": "Lift", "Сумма": "Amount", "Тариф": "Plan", "Готово": "Done", "Онлайн": "Online", "Оплаты": "Payments", "Отмена": "Cancel", "Ошибка": "Error", "Память": "Memory", "Пароль": "Password", "Сервер": "Server", "Статус": "Status", "Трафик": "Traffic", "Удалён": "Deleted", "всего:": "total:", "панель": "panel", "создан": "created", "Активна": "Active", "Закрыть": "Close", "Заметка": "Note", "Истекла": "Expired", "Ошибок:": "Errors:", "Сервер:": "Server:", "Серверы": "Servers", "Создать": "Create", "Удалено": "Deleted", "Удалить": "Delete", "никогда": "never", "ч назад": "h ago", "Включено": "Enabled", "Добавить": "Add", "Изменить": "Edit", "Нагрузка": "Load", "Название": "Name", "Напрямую": "Direct", "Обновить": "Refresh", "Порт API": "API port", "Сбросить": "Reset", "Торренты": "Torrents", "дн назад": "d ago", "Без имени": "No name", "Бессрочно": "Lifetime", "Выключено": "Disabled", "Настройки": "Settings", "Нет связи": "Offline", "Обновлено": "Refreshed", "Проверить": "Check", "Проверка:": "Check:", "Сохранено": "Saved", "Сохранить": "Save", "Транспорт": "Transport", "активных:": "active:", "мин назад": "min ago", "разрешены": "allowed", "К серверам": "To servers", "Копировать": "Copy", "Маскировка": "Camouflage", "Отправлено": "Sent", "Подключить": "Connect", "Путь XHTTP": "XHTTP path", "Устройства": "Devices", "не запущен": "not running", "остановлен": "stopped", "только что": "just now", "Все статусы": "All statuses", "Ошибка Xray": "Xray error", "Свой домен…": "Custom domain…", "Скопировано": "Copied", "на сервере.": "on the server.", "не привязан": "not linked", "перезапущен": "restarted", "подключения": "connections", "Адрес прокси": "Proxy address", "Без Telegram": "No Telegram", "Заблокирован": "Blocked", "Изменить VPN": "Edit VPN", "Использовано": "Used", "Нет подписки": "No subscription", "Подключение…": "Connecting…", "Пользователи": "Users", "Пользователь": "User", "Порт панели:": "Panel port:", "Серверов нет": "No servers", "Трафик всего": "Total traffic", "подключений:": "connections:", "Всё в порядке": "All good", "Лимит трафика": "Traffic limit", "Онлайн сейчас": "Online now", "Перезагружено": "Reloaded", "Перезагрузка…": "Reloading…", "Сервер удалён": "Server deleted", "Оплат пока нет": "No payments yet", "Подписка, дней": "Subscription, days", "Пользователь #": "User #", "Синхронизация:": "Sync:", "Текущий пароль": "Current password", "Требуется вход": "Login required", "Перезапуск Xray": "Restart Xray", "Публичный ключ:": "Public key:", "оставьте пустым": "leave empty", "Имя gRPC-сервиса": "gRPC service name", "Ключ work-панели": "Work panel key", "Название сервиса": "Service name", "Найдено проблем:": "Problems found:", "Открыть страницу": "Open page", "Порядок в списке": "Order in list", "Последние оплаты": "Recent payments", "Приостановлен до": "Suspended until", "Сервер подключён": "Server connected", "Статусы подписок": "Subscription statuses", "добавлен вручную": "added manually", "Контакт поддержки": "Support contact", "Никого не найдено": "Nothing found", "Подключить сервер": "Connect server", "Секретный путь: /": "Secret path: /", "Случайный браузер": "Random browser", "Новый пользователь": "New user", "Перезапустить бота": "Restart bot", "Серверов пока нет.": "No servers yet.", "Бессрочная подписка": "Lifetime subscription", "Написать в Telegram": "Message in Telegram", "Подключение сервера": "Connect a server", "Полностью случайный": "Fully random", "Пользователь создан": "User created", "Сохранить настройки": "Save settings", "Блокировать торренты": "Block torrents", "Код страны для флага": "Country code for the flag", "Например: Нидерланды": "E.g.: Netherlands", "Отпечаток TLS (uTLS)": "TLS fingerprint (uTLS)", "Панель перезагружена": "Panel reloaded", "Перевыпустить ссылки": "Reissue links", "Перезагрузить панель": "Reload panel", "Протокол / транспорт": "Protocol / transport", "Страна не определена": "Country unknown", "или https://t.me/...": "or https://t.me/...", "Новое VPN-подключение": "New VPN connection", "Панель управления VPN": "VPN control panel", "Подписка действует до": "Subscription valid until", "Страница пользователя": "User page", "подключений пока нет.": "connections yet.", "Подключение к Telegram": "Telegram connection", "Публичный адрес панели": "Panel public URL", "Ссылка подписки (Happ)": "Subscription link (Happ)", "Название (видно в Happ)": "Name (shown in Happ)", "Учётные данные изменены": "Credentials changed", "Название (необязательно)": "Name (optional)", "Сбросить счётчик трафика?": "Reset the traffic counter?", "Скрытие трафика (Reality)": "Traffic camouflage (Reality)", "Сначала подключите сервер": "Connect a server first", "лучший вариант маскировки": "best for camouflage", "Последние строки лога Xray": "Last lines of the Xray log", "Токен бота (от @BotFather)": "Bot token (from @BotFather)", "Телефон (для входа на сайт)": "Phone (for website login)", "сгенерируется автоматически": "generated automatically", "Лимит устройств по умолчанию": "Default device limit", "Маскироваться под сайт (SNI)": "Camouflage as site (SNI)", "Самый быстрый, рекомендуется": "Fastest, recommended", "Удалить это VPN-подключение?": "Delete this VPN connection?", "Через прокси (socks5 / http)": "Via proxy (socks5 / http)", "Учётная запись администратора": "Administrator account", "за превышение числа устройств": "for exceeding the device limit", "Лимит трафика по умолчанию, ГБ": "Default traffic limit, GB", "Онлайн (IP за последние 3 мин)": "Online (IPs in the last 3 min)", "Определится по стране и городу": "Detected from country and city", "администраторов для уведомлений": "of admins for notifications", "Лимит устройств (0 — без лимита)": "Device limit (0 — unlimited)", "Лимит трафика, ГБ (0 — без лимита)": "Traffic limit, GB (0 — unlimited)", "Поиск: имя, @username, телефон, ID": "Search: name, @username, phone, ID", "Сообщение пользователю в Telegram:": "Message to the user in Telegram:", "Удалить пользователя безвозвратно?": "Delete the user permanently?", "Сервер, через который пойдёт трафик": "Server that carries the traffic", "Сервер, через который идти в Telegram": "Server to reach Telegram through", "Через подключённый сервер (для России)": "Via a connected server (for Russia)", "конфигурация применена, Xray перезапущен": "config applied, Xray restarted", "Новый ключ (если перевыпускали на сервере)": "New key (if reissued on the server)", "Активных пользователей отправлено на серверы:": "Active users sent to servers:", "Доступ разрешён (снимите, чтобы заблокировать)": "Access allowed (uncheck to block)", "Новый пароль (оставьте пустым, чтобы не менять)": "New password (leave empty to keep)", "Сначала подключите сервер во вкладке «Серверы».": "Connect a server in the “Servers” tab first.", "Мультиплексирование, хорош для нестабильных сетей": "Multiplexing, good for unstable networks", "создан. Применится на сервере в течение пары секунд": "created. It will apply on the server in a few seconds", "Похож на обычный HTTPS-трафик, устойчив к блокировкам": "Looks like regular HTTPS, resistant to blocking", "Ключ выводится в конце установки work-панели. Повторно:": "The key is shown at the end of the work panel install. Show again:", "Применяются к новым пользователям. 0 — без ограничений.": "Applied to new users. 0 — unlimited.", "Установите work-панель на VPS и вставьте выданный ключ.": "Install the work panel on a VPS and paste the key it shows.", "Пользователей пока нет. Они появятся после /start в боте.": "No users yet. They appear after /start in the bot.", "Выпустить новые ссылки и UUID? Старые перестанут работать.": "Issue new links and UUID? The old ones will stop working.", "Сначала подключите зарубежный сервер во вкладке «Серверы».": "Connect a foreign server in the “Servers” tab first.", "Перевыпустить ключи Reality (клиентам нужно обновить подписку)": "Reissue Reality keys (clients must update the subscription)", "Поддерживаются socks5:// (с логином/паролем или без) и http://.": "socks5:// (with or without login/password) and http:// are supported.", "Удалить сервер и все его VPN-подключения? Xray на сервере будет очищен.": "Delete the server and all its VPN connections? Xray on the server will be cleared.", "Определяется автоматически по IP. Меняйте, только если определилось неверно.": "Detected automatically by IP. Change only if detected wrong.", "Используется в ссылках на страницу пользователя и подписку. Без пути админки.": "Used in user page and subscription links. Without the admin path.", "Обновить все серверы, заново применить настройки VPN, перезапустить Xray и бота": "Refresh all servers, re-apply VPN settings, restart Xray and the bot", "Проверяю Xray, порты, сайт-маскировку и выход в интернет через VPN… (до минуты)": "Checking Xray, ports, camouflage site and internet through the VPN… (up to a minute)", "Пользователи регистрируются через Telegram-бота. Ручное добавление — для своих и тестов.": "Users sign up via the Telegram bot. Manual adding is for friends and tests.", "Каждое подключение — это VLESS + Reality на выбранном сервере. Все активные пользователи автоматически получают доступ ко всем включённым подключениям.": "Each connection is VLESS + Reality on the selected server. All active users automatically get access to all enabled connections.", "Перезагрузить панель? Настройки будут заново отправлены на все серверы, Xray на них перезапустится (у клиентов соединение прервётся на пару секунд), бот переподключится.": "Reload the panel? Settings will be re-sent to all servers, Xray will restart on them (clients drop for a couple of seconds), the bot will reconnect.", "Для DPI соединение выглядит как обращение к выбранному сайту. Сайт должен поддерживать TLS 1.3 и HTTP/2; лучше брать такой, что доступен из страны сервера и не заблокирован в вашей.": "To DPI the connection looks like a visit to the chosen site. The site must support TLS 1.3 and HTTP/2; pick one reachable from the server's country and not blocked in yours.", "Сервер работает. Если в Happ всё равно нет интернета: обновите подписку в Happ (потяните список вниз / кнопка обновления), проверьте время на телефоне, попробуйте другой транспорт (XHTTP) или порт.": "The server works. If Happ still has no internet: update the subscription in Happ (pull down / refresh button), check the phone's time, try another transport (XHTTP) or port.", "VPN-подключения": "VPN connections", "VPN-подключений": "VPN connections", "Пользователь не найден": "User not found", "Telegram-бот": "Telegram bot", "Срок": "Term", "♾ Бессрочно": "♾ Lifetime", "♾ Бессрочная подписка": "♾ Lifetime subscription", "Новый ключ": "New key", "Донат": "Donate", "Поддержать автора": "Support the author", "Тема": "Theme", "Тёмная": "Dark", "Светлая": "Light", "Зелёная": "Green", "Красная": "Red", "Сервера": "Servers", "ID ": "ID ", "Ничего": "Nothing", "Сменить их, а также домен и сертификат — в меню на сервере:": "Change them, as well as the domain and certificate, in the server menu:", "Промокоды": "Promo codes", "+ Создать промокод": "+ Create promo code", "Создать промокод": "Create promo code", "Код": "Code", "Скидка": "Discount", "Тарифы": "Plans", "Действует до": "Valid until", "Использован": "Used", "Тип": "Type", "Для кого": "Audience", "все": "all", "бессрочно": "no expiry", "многоразовый": "reusable", "единоразовый": "one-time", "только новые": "new only", "Активен": "Active", "Отключён": "Disabled", "Истёк": "Expired", "Исчерпан": "Used up", "Промокодов пока нет.": "No promo codes yet.", "Пользователь вводит промокод в боте (кнопка «🎟 Промокод» или /promo КОД) либо переходит по ссылке t.me/бот?start=КОД. Скидка применяется к цене тарифа при любом способе оплаты; при скидке 100% подписка активируется без оплаты.": "Users enter the code in the bot (“🎟 Promo code” button or /promo CODE) or open t.me/bot?start=CODE. The discount applies to the plan price for any payment method; with 100% the subscription is activated without payment.", "Промокод": "Promo code", "Новый промокод": "New promo code", "Латинские буквы, цифры, - и _. Регистр не важен.": "Latin letters, digits, - and _. Case-insensitive.", "Скидка, %": "Discount, %", "100% — бесплатно": "100% — free", "Тарифы, на которые действует": "Plans it applies to", "Ничего не отмечено — действует на все тарифы.": "Nothing checked — applies to all plans.", "Срок действия": "Valid until", "Пусто — бессрочно": "Empty — no expiry", "Общее количество использований": "Total number of uses", "0 — без ограничений. Использован:": "0 — unlimited. Used:", "Единоразовый — один раз на пользователя": "One-time — once per user", "Многоразовый — пользователь может применять при каждой оплате": "Reusable — the user can apply it to every payment", "Для всех пользователей": "For all users", "Только для новых (ещё ни разу не платили)": "New users only (never paid before)", "Заметка (видна только в админке)": "Note (visible only in the admin panel)", "Например: для канала": "E.g.: for the channel", "Включён": "Enabled", "Ссылка для активации в боте": "Bot activation link", "Использования:": "Uses:", "Пользователей:": "Users:", "оплачено": "paid", "скидка": "discount", "Промокод создан": "Promo code created", "Удалить промокод? История использований сохранится в оплатах.": "Delete the promo code? Usage history stays in payments.", "Язык бота и страницы": "Bot and page language", "Master-панель": "Master panel", "Work-панель": "Work panel", "Диск": "Disk", "Нагрузка (LA)": "Load (LA)", "Аптайм": "Uptime", "Доступна": "Available", "ч": "h", "мин": "min", "Заняты на сервере:": "Busy on the server:", "занят:": "busy:", "work-панель": "work panel", "Резервная копия": "Backup", "Скачать бэкап": "Download backup", "Сохранить копию на сервере": "Save a copy on the server", "Загрузить бэкап": "Upload backup", "Объединить с текущими данными: совпадающие записи обновятся, новые добавятся, остальное останется": "Merge with current data: matching records are updated, new ones added, the rest stays", "Заменить всё": "Replace everything", "Удалить текущие данные и загрузить данные из копии": "Delete current data and load the data from the backup", "Логин администратора, адрес, порт и секретный путь админки не меняются. Перед восстановлением текущая база автоматически сохраняется.": "Admin login, URL, port and secret path are not changed. The current database is saved automatically before restoring.", "Восстановить": "Restore", "Копии на сервере": "Copies on the server", "Версия": "Version", "Данные": "Data", "перед восстановлением": "before restore", "вручную": "manual", "авто": "auto", "польз.": "users", "серв.": "servers", "Скачать": "Download", "Откатить": "Roll back", "Копий пока нет. Они создаются автоматически перед каждым восстановлением, или нажмите «Сохранить копию на сервере».": "No copies yet. They are created automatically before each restore, or press “Save a copy on the server”.", "Копия сохранена": "Copy saved", "Удалить эту копию с сервера?": "Delete this copy from the server?", "Данные восстановлены": "Data restored", "Текущие данные заменены данными из копии.": "Current data was replaced with the backup data.", "Данные из копии объединены с текущими.": "Backup data was merged with the current data.", "серверов:": "servers:", "промокодов:": "promo codes:", "оплат:": "payments:", "Серверы:": "Servers:", "обновлено": "updated", "Пользователи:": "Users:", "Промокоды:": "Promo codes:", "Оплаты:": "Payments:", "Настроек:": "Settings:", "Копия от": "Backup from", "версия": "version", "Прежнее состояние сохранено:": "Previous state saved:", "— его можно вернуть кнопкой «Откатить».": "— you can bring it back with “Roll back”.", "Настройки отправляются на серверы, бот переподключается.": "Settings are being sent to the servers, the bot is reconnecting.", "Заменить ВСЕ текущие данные данными из копии?": "Replace ALL current data with the backup data?", "Объединить данные из копии с текущими?": "Merge the backup data with the current data?", "Вернуть данные из этой копии? Текущие данные будут заменены (их копия тоже сохранится).": "Restore data from this copy? Current data will be replaced (a copy of it is saved too).", "Обновить данные": "Update data", "Проверяю порт…": "Checking the port…", "Выберите другой порт.": "Choose another port.", "Скорее всего, порт закрыт фаерволом хостера или фильтруется по пути.": "The port is most likely closed by the hoster's firewall or filtered on the way.", "Проверенные свободные порты — заменить на:": "Verified free ports — replace with:", "Использовать": "Use", "Свободных проверенных портов не нашлось — введите другой порт вручную.": "No verified free ports found — enter another port manually.", "Сохранить всё равно": "Save anyway", "Доступна новая версия": "A new version is available", "Обновление": "Update", "Обновления": "Updates", "Установлено": "Installed", "Последняя версия": "Latest version", "Проверено": "Checked", "Подпись": "Signature", "нет ключа — обновите вручную один раз": "no key — update manually once", "У вас последняя версия.": "You have the latest version.", "Обновить master-панель": "Update the master panel", "Проверить обновления": "Check for updates", "Адрес проверки обновлений": "Update check URL", "Проверяю…": "Checking…", "Обновление master-панели": "Updating the master panel", "Не закрывайте страницу.": "Do not close the page.", "Панель перезапускается…": "The panel is restarting…", "Обновляю…": "Updating…", "Обновить work-панель до": "Update the work panel to", "Устанавливаю": "Installing", "Готово: установлена версия": "Done: installed version", "Доступна версия": "Version available", "Резервные копии": "Backups", "Автоматическое создание": "Automatic backups", "Раз в день": "Once a day", "Раз в неделю": "Once a week", "Раз в месяц": "Once a month", "Сколько автоматических копий хранить": "How many automatic copies to keep", "Старые автоматические копии удаляются. Копии «вручную» и «перед восстановлением» хранятся отдельно — по 10 последних.": "Older automatic copies are deleted. “Manual” and “before restore” copies are kept separately — the last 10 of each.", "Последняя": "Last", "Следующая": "Next", "Хранится": "Stored", "в ближайшие 10 минут": "within 10 minutes", "по расписанию": "scheduled", "Подключение": "Connection", "Сохранить тарифы": "Save plans", "Кнопки главного меню": "Main menu buttons", "Порядок — стрелками. «В строке с предыдущей» ставит кнопку рядом с кнопкой выше. Пустая подпись — стандартная.": "Reorder with the arrows. “In a row with the previous” puts the button next to the one above. Empty label — default.", "+ Кнопка-ссылка": "+ Link button", "+ Кнопка с сообщением": "+ Message button", "Кнопок в одной строке, не больше": "Max buttons per row", "Просить номер телефона после регистрации": "Ask for the phone number after sign-up", "Тексты сообщений": "Message texts", "Сохранить меню и тексты": "Save menu and texts", "Вернуть стандартные": "Restore defaults", "Предпросмотр": "Preview", "Приветствие": "Welcome", "Меню": "Menu", "Как подключиться": "How to connect", "Номер уже привязан": "Phone already linked", "Так увидит бота пользователь. Сохраните, чтобы изменения появились в Telegram.": "This is how users see the bot. Save to apply the changes in Telegram.", "Показывать": "Show", "ссылка": "link", "сообщение": "message", "В строке с предыдущей": "In a row with the previous", "Купить / продлить": "Buy / renew", "Страница подписки": "Subscription page", "Моя подписка": "My subscription", "Привязать номер": "Link phone", "Поддержка": "Support", "Сменить язык": "Switch language", "тарифы и оплата": "plans and payment", "ссылка на личную страницу (если задан публичный адрес)": "link to the personal page (if the public URL is set)", "статус, трафик, ссылка подписки": "status, traffic, subscription link", "ввод промокода": "promo code entry", "текст «Как подключиться»": "“How to connect” text", "видна, пока номер не привязан": "visible until the phone is linked", "ссылка на контакт поддержки из настроек": "link to the support contact from settings", "переключение RU/EN": "RU/EN switch", "Приветствие (после первого /start)": "Welcome (after the first /start)", "Главное меню": "Main menu", "↺ стандартный": "↺ default", "Вернуть стандартные кнопки и тексты? Свои кнопки будут удалены.": "Restore the default buttons and texts? Custom buttons will be deleted.", "Выберите зарубежный сервер.": "Choose a foreign server.", "Текст сообщения (RU)": "Message text (RU)", "Подпись RU": "Label RU", "Оплаты за 30 дней": "Payments in 30 days", "звёзд всего:": "stars total:", "звёзды": "stars", "карта": "card", "крипта": "crypto", "промокод": "promo", "Указать токен": "Set the token", "⭐ Звёзды Telegram": "⭐ Telegram Stars", "Токен провайдера": "Provider token", "Валюта": "Currency", "Чек по 54-ФЗ (ЮKassa)": "Fiscal receipt (54-FZ, YooKassa)", "Токен Crypto Pay": "Crypto Pay token", "Тестовая сеть (testnet)": "Testnet", "Цена в валюте": "Price currency", "Принимаемые монеты": "Accepted coins", "Сохранить тарифы и оплату": "Save plans and payments", "Тарифы и оплата": "Plans & payments", "Тарифы и цены": "Plans and prices", "Валюта цен (карта, криптовалюта, перевод)": "Price currency (card, crypto, transfer)", "Звёзды ⭐": "Stars ⭐", "Цена,": "Price,", "1 месяц": "1 month", "2 месяца": "2 months", "3 месяца": "3 months", "6 месяцев": "6 months", "9 месяцев": "9 months", "12 месяцев": "12 months", "24 месяца": "24 months", "Отметьте тарифы, которые продаются. 0 — тариф не продаётся этим способом. Цена в валюте общая для карты, криптовалюты и перевода. Промокоды действуют на все способы.": "Check the plans you sell. 0 — not sold this way. The currency price is shared by card, crypto and transfer. Promo codes apply to all methods.", "Способы оплаты": "Payment methods", "+ Подключить": "+ Connect", "работает": "active", "не настроен": "not configured", "выключен": "disabled", "Оплата прямо в Telegram, настраивать ничего не нужно. Цены — в колонке «Звёзды». 1 звезда ≈ $0.013 для покупателя, вывод через Fragment.": "Payment right in Telegram, nothing to configure. Prices are in the “Stars” column. 1 star ≈ $0.013 for the buyer, withdrawal via Fragment.", "@BotFather → ваш бот → Payments → выберите провайдера → скопируйте токен. Токен с TEST — для проверки без денег. Минимальная сумма — около $1.": "@BotFather → your bot → Payments → choose a provider → copy the token. A TEST token lets you try without money. Minimum amount — about $1.", "@CryptoBot → Crypto Pay → Создать приложение → токен API. Для теста — @CryptoTestnetBot и флажок ниже.": "@CryptoBot → Crypto Pay → Create App → API token. For testing — @CryptoTestnetBot and the checkbox below.", "Покупатель платит эквивалент цены в выбранной монете по курсу CryptoBot. Оплата проверяется каждые 20 секунд.": "The buyer pays the equivalent in the chosen coin at the CryptoBot rate. Payment is checked every 20 seconds.", "Реквизиты для перевода": "Transfer details", "Переводы — ожидают подтверждения": "Transfers awaiting confirmation", "№": "#", "Подтвердить": "Confirm", "Отклонить": "Reject", "Нет заявок. Заявка появляется, когда пользователь нажимает «Я оплатил».": "No requests. A request appears when a user taps “I have paid”.", "Подтверждено": "Confirmed", "Отклонено": "Rejected", "перевод": "transfer", "ЮKassa, Сбер, Т-Банк и др. через @BotFather → Payments": "YooKassa, Sber, T-Bank etc. via @BotFather → Payments", "USDT, TON, BTC… через @CryptoBot": "USDT, TON, BTC… via @CryptoBot", "Реквизиты карты или СБП, вы подтверждаете оплату вручную": "Card or bank details, you confirm payments manually", "💳 Картой": "💳 By card", "💎 Криптовалютой": "💎 Crypto", "🏦 Переводом": "🏦 Bank transfer", "Поиск раздела": "Find a section", "Уведомления": "Notices", "+ Новое уведомление": "+ New notice", "Показываются на личной странице пользователя, над меню бота и в приложении (Happ, INCY). При появлении рассылаются в Telegram.": "Shown on the user's personal page, above the bot menu and in the app (Happ, INCY). Sent to Telegram when they start.", "Бот не запущен — рассылка не работает.": "The bot is not running — sending does not work.", "Информация": "Information", "Технические работы": "Maintenance", "Важно": "Important", "Показывается": "Showing", "Запланировано": "Scheduled", "Завершено": "Ended", "без срока": "no end", "только с активной подпиской": "active subscribers only", "все пользователи": "all users", "Telegram: отправлено": "Telegram: sent", "Telegram: будет отправлено при появлении": "Telegram: will be sent when it starts", "без рассылки в Telegram": "no Telegram sending", "Отправить в Telegram сейчас": "Send to Telegram now", "Завершить": "End now", "Уведомлений пока нет. Например: «Технические работы 10.11 с 02:00 до 04:00 — возможны перебои».": "No notices yet. For example: “Maintenance on 10.11 from 02:00 to 04:00 — short interruptions possible”.", "Уведомление": "Notice", "Новое уведомление": "New notice", "Текст": "Text", "Текст на английском (необязательно)": "English text (optional)", "Показывать с": "Show from", "Показывать до": "Show until", "Пусто — сразу": "Empty — right away", "Пусто — без срока": "Empty — no end", "Кому": "Audience", "Всем пользователям": "All users", "Только с активной подпиской": "Active subscribers only", "Отправить в Telegram при появлении": "Send to Telegram when it starts", "Время — по часам вашего устройства. В приложениях Happ/INCY показываются первые 200 символов.": "Times use your device clock. Happ/INCY show the first 200 characters.", "Рассылка запущена": "Sending started", "Удалить уведомление?": "Delete the notice?", "Для пользователей с английским языком": "For users with English language", "Переписка в боте": "Bot conversation", "Сохранять историю": "Keep history", "Каждый ответ бота — новое сообщение, переписка остаётся": "Every bot reply is a new message, the history stays", "Чистый чат": "Clean chat", "Меню обновляется на месте, сообщения пользователя и старые сообщения бота удаляются": "The menu updates in place, user messages and old bot messages are deleted", "Уведомления, оплаты и сообщения администраторам не удаляются. Telegram разрешает удалять сообщения не старше 48 часов.": "Notices, payments and admin messages are not deleted. Telegram allows deleting messages up to 48 hours old.", "Уведомления администраторам": "Admin notifications", "Подключить мой Telegram": "Link my Telegram", "доставлено": "delivered", "ещё не проверялось": "not checked yet", "Не подключён ни один администратор — уведомления об оплатах и переводах в Telegram не приходят.": "No admin is linked — payment and transfer notifications are not sent to Telegram.", "Откройте ссылку в Telegram с аккаунта, на который нужны уведомления, и нажмите «Старт». Ссылка действует 15 минут.": "Open the link in Telegram from the account that should get notifications and press “Start”. The link is valid for 15 minutes.", "или отправьте боту:": "or send to the bot:", "Telegram подключён": "Telegram linked", "Не всем доставлено — см. причины": "Not delivered to everyone — see the reasons", "Доставлено": "Delivered", "Не подключён ни один администратор — уведомления о переводах в Telegram не придут.": "No admin is linked — transfer notifications will not reach Telegram.", "Последнее уведомление дошло не всем администраторам.": "The last notification did not reach every admin.", "Настроить": "Configure", "Узнать свой ID: @userinfobot. Сюда приходят уведомления о новых пользователях, оплатах, переводах и обновлениях.": "Find your ID: @userinfobot. Notifications about new users, payments, transfers and updates go here.", "Удалить уведомление? Оно исчезнет с сайта и будет удалено из чатов Telegram у всех получателей.": "Delete the notice? It disappears from the site and is deleted from all recipients' Telegram chats.", "Удаляю из Telegram:": "Deleting from Telegram:", "Статистика": "Statistics", "7 дней": "7 days", "30 дней": "30 days", "90 дней": "90 days", "Год": "Year", "Всё время": "All time", "Свой период": "Custom", "Скачать оплаты (CSV)": "Download payments (CSV)", "Пользователь: имя, @username, Telegram ID, телефон": "User: name, @username, Telegram ID, phone", "Все способы": "All methods", "Все валюты": "All currencies", "Все тарифы": "All plans", "⭐ звёзды": "⭐ stars", "Выручка": "Revenue", "нет оплат": "no payments", "Новые пользователи": "New users", "Подписки сейчас": "Subscriptions now", "Нет оплат за выбранный период.": "No payments in the selected period.", "Сумма за период:": "Total for the period:", "Число оплат": "Number of payments", "График новых пользователей строится без фильтров по пользователю и оплатам.": "The new users chart is built without user and payment filters.", "По способам оплаты": "By payment method", "Способ": "Method", "Оплат": "Payments", "По тарифам": "By plan", "Использований": "Uses", "Лучшие покупатели": "Top buyers", "Нет оплат по выбранным фильтрам.": "No payments match the filters.", "за всё время:": "all time:", "Только с истёкшей подпиской": "Expired subscribers only", "только с истёкшей подпиской": "expired subscribers only", "«С истёкшей подпиской» — для напоминаний о продлении и промокодов вернувшимся.": "“Expired subscribers” — for renewal reminders and win-back promo codes.", "Уникальные коды платежа": "Unique payment codes", "Пользователь получит код из 5 символов (например, K7M2X) и укажет его в комментарии к переводу; в уведомлении администратору — этот же код для сверки в банке. Без флажка в комментарии указывается номер заказа.": "The user gets a 5-character code (e.g. K7M2X) to put in the payment comment; the admin notification shows the same code for checking in the bank. Without it, the order number is used.", "Бот покажет сумму и реквизиты. После кнопки «Я оплатил» администраторам придёт сообщение с кнопками «Подтвердить» / «Отклонить»; подтвердить можно и здесь.": "The bot shows the amount and details. After “I have paid”, admins get a message with “Confirm” / “Reject” buttons; you can also confirm here.", "Версия master-панели": "Master panel version", "онлайн": "online", "скачан": "downloaded", "копия на сервере": "copy on server", "Загрузка…": "Loading…", "нет связи": "offline", "устанавливается": "installing", "Обновить до": "Update to", "Актуальная версия": "Up to date", "Другая версия…": "Other version…", "Обновить master-панель до": "Update master panel to", "Откатить…": "Roll back…", "Устанавливается": "Installing", "Доступные версии": "Available versions", "Где": "Where", "установлена": "installed", "Что нового": "What's new", "Список версий пока недоступен.": "The version list is not available yet.", "Версии берутся из релизов GitHub, зеркала, скачанных пакетов и копий, которые установщик сохраняет перед каждым обновлением (3 последние). Принимаются только пакеты с верной подписью.": "Versions come from GitHub releases, the mirror, downloaded packages and copies the installer saves before each update (last 3). Only correctly signed packages are accepted.", "Пусто — по умолчанию: GitHub автора (pronitar/hidevp-panel), при недоступности — зеркало hidevp.ru.": "Empty — default: the author's GitHub (pronitar/hidevp-panel), falling back to the hidevp.ru mirror.", "Нет других версий": "No other versions", "Откат master-панели": "Master panel rollback", "Версия work-панели — «": "Work panel version — “", "Установить версию": "Install version", "пакет": "package", "Сейчас установлена:": "Currently installed:", "Откат — только на свой страх и риск.": "Rollback is entirely at your own risk.", "Старая версия может не поддерживать данные и настройки, созданные новой: часть функций может работать неправильно или не работать.": "An older version may not support data and settings created by a newer one: some features may work incorrectly or not at all.", "Перед откатом автоматически создаётся резервная копия базы (раздел «Резервные копии»). Панель перезапустится и будет недоступна около минуты.": "A database backup is created automatically before the rollback (Backups section). The panel will restart and be unavailable for about a minute.", "Подключения клиентов на время установки не прерываются.": "Client connections are not interrupted during installation.", "Вернуться на новую версию можно здесь же кнопкой «Обновить».": "You can return to the new version here with the Update button.", "Понимаю риски и хочу продолжить": "I understand the risks and want to continue", "Установить": "Install", "Установка идёт слишком долго — проверьте на сервере:": "Installation is taking too long — check on the server:", "Установка запущена": "Installation started", "Устанавливаю…": "Installing…", "Установка идёт слишком долго — проверьте сервер: hidevp": "Installation is taking too long — check the server: hidevp", "Обновить work-панель на сервере «": "Update the work panel on server “", "Панель перезапустится и будет недоступна около минуты. Если на этом сервере есть work-панель, она тоже обновится.": "The panel will restart and be unavailable for about a minute. If this server also has a work panel, it will be updated too.", "Подключения клиентов не прервутся.": "Client connections will not be interrupted.", "Спасибо, что пользуетесь HideVP! Поддержка помогает развивать панель и выпускать обновления.": "Thank you for using HideVP! Your support helps develop the panel and release updates.", "Поддержать на Boosty": "Support on Boosty", "Криптовалютой — нажмите «Копировать» и проверьте адрес перед отправкой:": "With crypto — press “Copy” and check the address before sending:", "ETH-адрес принимает и токены сети Ethereum (ERC-20). Не отправляйте монеты других сетей на эти адреса.": "The ETH address also accepts Ethereum network tokens (ERC-20). Do not send coins from other networks to these addresses.", "Создать копию": "Create a backup", "Полная копия": "Full backup", "Все данные панели": "All panel data", "Выборочно": "Selective", "Только отмеченные данные": "Only the selected data", "подписки, лимиты, привязка Telegram": "subscriptions, limits, Telegram link", "узлы с ключами подключения": "nodes with connection keys", "вместе с серверами": "together with servers", "Статистика трафика": "Traffic statistics", "счётчики использованного трафика": "used traffic counters", "история оплат, счета CryptoBot и переводы": "payment history, CryptoBot invoices and transfers", "и их использования": "and their uses", "бот, тарифы и оплата, общие настройки": "bot, plans & payments, general settings", "В полной копии: настройки, токен бота, тарифы, пользователи, серверы (узлы) с ключами подключения, VPN-подключения, промокоды, оплаты и уведомления. Храните файл в надёжном месте — по нему можно управлять вашими серверами.": "A full backup contains settings, bot token, plans, users, servers (nodes) with connection keys, VPN connections, promo codes, payments and notices. Keep the file safe — it gives control over your servers.", "Заменить": "Replace", "Удалить текущие данные и загрузить данные из копии. Для выборочной копии заменяются только данные, которые в ней есть": "Delete current data and load data from the backup. For a selective backup only the data it contains is replaced", "Выберите, что сохранить в копии": "Choose what to include in the backup", "полная": "full", "Состав копии:": "Backup contents:", "Подключения клиентов при обновлении work-панели не прерываются.": "Client connections are not interrupted while a work panel updates.", "Выручка по дням": "Revenue by day", "Выручка по месяцам": "Revenue by month", "истекли:": "expired:", "без подписки:": "no subscription:", "платили:": "paying:", "отключены:": "disabled:", "по промокоду бесплатно:": "free with a promo code:", "Разметка Telegram: <b>жирный</b>, <i>курсив</i>, <u>подчёркнутый</u>, <code>код</code>, <a href=\"https://…\">ссылка</a>. Подстановки: {title} — название сервиса, {name} — имя пользователя, {status} — статус подписки, {expires} — дата окончания, {page} — ссылка на личную страницу, {support} — контакт поддержки. Строка, в которой подстановка пустая, не показывается.": "Telegram markup: <b>bold</b>, <i>italic</i>, <u>underline</u>, <code>code</code>, <a href=\"https://…\">link</a>. Placeholders: {title} — service name, {name} — user name, {status} — subscription status, {expires} — end date, {page} — personal page link, {support} — support contact. A line with an empty placeholder is not shown.", "технические работы и новости": "maintenance and news", "перед откатом": "before rollback", "перед обновлением": "before update"};
+const CYR = /[А-Яа-яЁё]/;
+const PH = Object.keys(EN).filter(k => k.length > 1).sort((a,b) => b.length - a.length)
+  .map(k => [new RegExp("(?<![А-Яа-яЁё])" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![А-Яа-яЁё])", "g"), EN[k]]);
+function tr(s){
+  if (LANG !== "en" || !s || !CYR.test(s)) return s;
+  const k = s.trim();
+  if (EN[k]) return s.replace(k, EN[k]);
+  let out = s;
+  for (const [re, en] of PH) { if (!CYR.test(out)) break; out = out.replace(re, en); }
+  return out;
+}
+const SKIP = new Set(["SCRIPT","STYLE","PRE","TEXTAREA"]);
+function trNode(root){
+  if (LANG !== "en" || !root) return;
+  if (root.nodeType === 3) { const pn = root.parentNode; if (pn && pn.closest && pn.closest(".notr")) return; if (!SKIP.has(pn && pn.nodeName)) { const t = tr(root.data); if (t !== root.data) root.data = t; } return; }
+  if (root.nodeType !== 1 || SKIP.has(root.nodeName) || (root.closest && root.closest(".notr"))) return;
+  for (const el of [root, ...root.querySelectorAll("[placeholder],[title]")]) {
+    if (el.closest && el.closest(".notr")) continue;
+    for (const a of ["placeholder","title"]) { const v = el.getAttribute && el.getAttribute(a); if (v && CYR.test(v)) el.setAttribute(a, tr(v)); }
+  }
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = []; while (w.nextNode()) nodes.push(w.currentNode);
+  nodes.forEach(trNode);
+}
+if (LANG === "en") {
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(trNode))).observe(document.documentElement, {childList: true, subtree: true});
+  const _c = window.confirm.bind(window), _p = window.prompt.bind(window);
+  window.confirm = m => _c(tr(m)); window.prompt = (m, d) => _p(tr(m), d);
+}
+function setLang(l){
+  if (l === LANG) return;
+  lsSet("hv_lang", l);
+  fetch(API + "settings", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({lang: l}), credentials: "same-origin"}).finally(() => location.reload());
+}
+function themeColor(t){ return {dark:"#151a22", light:"#f4f6fa", green:"#22c55e", red:"#ef4444"}[t] || "#151a22"; }
+function setTheme(t){
+  THEME = t; lsSet("hv_theme", t);
+  document.documentElement.setAttribute("data-theme", t);
+  document.querySelectorAll(".thp .menu button").forEach(b => b.classList.toggle("on", b.dataset.th === t));
+  document.querySelectorAll(".thp .cur").forEach(b => b.style.background = themeColor(t));
+  document.querySelectorAll(".thp").forEach(x => x.classList.remove("open"));
+}
+document.addEventListener("click", e => { if (!e.target.closest(".thp")) document.querySelectorAll(".thp.open").forEach(x => x.classList.remove("open")); });
+function prefsHtml(){
+  return `<div class="segbtn" title="${LANG==="en"?"Language":"Язык"}"><button class="${LANG==="ru"?"on":""}" onclick="setLang('ru')">RU</button><button class="${LANG==="en"?"on":""}" onclick="setLang('en')">EN</button></div>
+    <div class="thp" id="thp"><button class="cur" title="Тема" style="background:${themeColor(THEME)}" onclick="event.stopPropagation();this.parentNode.classList.toggle('open')"></button>
+      <div class="menu">${THEMES.map(([k,c,n])=>`<button data-th="${k}" class="${THEME===k?"on":""}" onclick="setTheme('${k}')"><span class="dot" style="background:${c}"></span>${n}</button>`).join("")}</div></div>`;
+}
+function donate(){
+  modal("Поддержать автора", `<p style="margin-top:0">Спасибо, что пользуетесь HideVP! Поддержка помогает развивать панель и выпускать обновления.</p>
+    <a class="btn p" href="${DONATE.boosty}" target="_blank" rel="noopener" style="width:100%;justify-content:center">${ic("heart",16)} Поддержать на Boosty</a>
+    <div class="muted small" style="margin:16px 0 4px">Криптовалютой — нажмите «Копировать» и проверьте адрес перед отправкой:</div>
+    ${DONATE.crypto.map(([n,a])=>`<label class="notr">${n}</label>${copyField(a)}`).join("")}
+    <div class="hint">ETH-адрес принимает и токены сети Ethereum (ERC-20). Не отправляйте монеты других сетей на эти адреса.</div>`,
+    `<button class="btn" onclick="closeModal()">Закрыть</button>`);
+}
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const GB = 1024 ** 3;
+function fmt(b){b=+b||0;const u=LANG==="en"?["B","KB","MB","GB","TB"]:["Б","КБ","МБ","ГБ","ТБ"];let i=0;while(b>=1024&&i<4){b/=1024;i++}return (i<2?b.toFixed(0):b.toFixed(2))+" "+u[i]}
+const CUR = {RUB:"₽", USD:"$", EUR:"€", KZT:"₸", UAH:"₴", BYN:"Br"};
+function money(a, cur){ cur = cur || "XTR"; if (cur === "XTR") return `${a} ⭐`; const v = (a/100).toFixed(2).replace(/\.00$/,""); return `${v} ${CUR[cur]||cur}`; }
+const PAYM = {stars:"звёзды", card:"карта", crypto:"крипта", manual:"перевод", promo:"промокод"};
+function date(ts){return ts ? new Date(ts*1000).toLocaleString(LANG==="en"?"en-GB":"ru-RU",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—"}
+function ago(ts){if(!ts)return "никогда";const s=Date.now()/1000-ts;if(s<90)return "только что";if(s<3600)return Math.round(s/60)+" мин назад";if(s<86400)return Math.round(s/3600)+" ч назад";return Math.round(s/86400)+" дн назад"}
+function toLocalInput(ts){if(!ts)return "";const d=new Date(ts*1000);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)}
+const STATUS = {active:"Активна",new:"Нет подписки",expired:"Истекла",traffic:"Лимит трафика",suspended:"Устройства",disabled:"Заблокирован",online:"Онлайн",offline:"Нет связи",error:"Ошибка Xray",unknown:"—"};
+const badge = s => `<span class="badge s-${s}">${STATUS[s]||s}</span>`;
+
+async function call(method, path, body){
+  const r = await fetch(API + path, {method, headers: {"Content-Type":"application/json", "X-Lang": LANG}, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin"});
+  let d = {}; try { d = await r.json(); } catch(e) {}
+  if (r.status === 401 && path !== "login") { showLogin(); throw new Error("Требуется вход"); }
+  if (!r.ok) { const e = new Error(d.error || ("Ошибка " + r.status)); e.data = d; throw e; }
+  return d;
+}
+function toast(msg, err){const t=document.createElement("div");t.className="toast"+(err?" err":"");t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),err?5000:2500)}
+async function act(fn, okMsg){try{const r=await fn();if(okMsg)toast(okMsg);return r}catch(e){toast(e.message,true);throw e}}
+function copy(text){
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>toast("Скопировано"));
+  else {const a=document.createElement("textarea");a.value=text;document.body.appendChild(a);a.select();document.execCommand("copy");a.remove();toast("Скопировано")}
+}
+function copyField(v){return `<div class="copy"><input type="text" readonly value="${esc(v)}"><button class="btn sm" type="button" onclick="copy(this.previousElementSibling.value)">Копировать</button></div>`}
+
+function modal(title, html, buttons){
+  closeModal();
+  const bg = document.createElement("div");
+  bg.className = "modal-bg"; bg.id = "modal";
+  bg.innerHTML = `<div class="modal"><div class="mh"><h2>${esc(title)}</h2><button class="x" onclick="closeModal()">×</button></div><div class="mb">${html}</div><div class="mf">${buttons||""}</div></div>`;
+  bg.addEventListener("mousedown", e => { if (e.target === bg) closeModal(); });
+  document.body.appendChild(bg);
+  return bg;
+}
+function closeModal(){ const m = $("#modal"); if (m) m.remove(); }
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+function showLogin(){
+  $("#root").innerHTML = `<div class="login-tools">${prefsHtml()}</div><div class="login"><div class="card">
+    <h1 style="margin-bottom:4px">Вход</h1><div class="muted">Панель управления VPN</div>
+    <form id="lf"><label>Логин</label><input type="text" name="username" autocomplete="username" required>
+    <label>Пароль</label><input type="password" name="password" autocomplete="current-password" required>
+    <button class="btn p" style="width:100%;justify-content:center;margin-top:18px">Войти</button></form></div></div>`;
+  $("#lf").onsubmit = async e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    try { await call("POST", "login", {username: f.get("username"), password: f.get("password")}); start(); }
+    catch(err) { toast(err.message, true); }
+  };
+}
+
+const TABS = [["overview","Обзор"],["nodes","Серверы"],["vpns","VPN"],["users","Пользователи"],["stats","Статистика"],["promos","Промокоды"],["pay","Тарифы и оплата"],["notices","Уведомления"],["bot","Telegram-бот"],["backup","Резервные копии"],["updates","Обновления"],["settings","Настройки"]];
+let tab = location.hash.slice(1) || "overview", ME = {}, timer;
+async function start(){
+  try { ME = await call("GET", "me"); } catch(e) { return showLogin(); }
+  document.title = (ME.title || "VPN") + " — панель";
+  $("#root").innerHTML = `<div class="layout"><div class="navshade" onclick="navOpen(false)"></div><aside><div class="logo">${esc(ME.title||"VPN")}</div>
+    <div class="navsearch"><input type="search" id="navq" placeholder="Поиск раздела" autocomplete="off"></div>
+    <div class="nav" id="navlist">${TABS.map(([k,t])=>`<button data-t="${k}" title="${t}"><span class="ic">${ic(k,20)}</span><span class="t">${t}</span></button>`).join("")}</div>
+    <div class="bottom nav"><button onclick="logout()" title="Выйти"><span class="ic">${ic("logout",20)}</span><span class="t">Выйти</span></button></div></aside>
+    <main><div class="topbar"><button class="btn burger" onclick="navOpen(true)" title="Меню" aria-label="Меню">${ic("menu",18)}<span class="cur" id="navcur"></span></button><span class="st" id="topst"></span>${prefsHtml()}<button class="btn don" onclick="donate()" title="Донат">${ic("heart",16)}<span class="lbl">Донат</span></button><button class="btn" id="reloadBtn" title="Обновить все серверы, заново применить настройки VPN, перезапустить Xray и бота">${ic("reload",16)}<span class="lbl">Перезагрузить панель</span></button><button class="verchip" id="verChip" onclick="go('updates')"></button></div><div id="main"></div></main></div>`;
+  $("#reloadBtn").onclick = reloadAll;
+  document.querySelectorAll(".nav button[data-t]").forEach(b => b.onclick = () => { navOpen(false); go(b.dataset.t); });
+  $("#navq").oninput = e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll("#navlist button").forEach(b => b.classList.toggle("hide", !!q && !b.textContent.toLowerCase().includes(q) && !b.dataset.t.includes(q)));
+  };
+  $("#navq").onkeydown = e => { if (e.key === "Enter") { const b = [...document.querySelectorAll("#navlist button:not(.hide)")][0]; if (b) b.click(); } if (e.key === "Escape") navOpen(false); };
+  go(tab);
+  updBadge();
+  checkUpdateBadge();
+}
+let UPD = {}, UPV = null;
+function updBadge(){
+  const b = $("#verChip"); if (!b) return;
+  b.classList.toggle("has", !!UPD.available);
+  b.title = tr(UPD.available ? `Доступна версия ${UPD.latest_version}` : "Версия master-панели");
+  b.innerHTML = `<span class="notr">v${esc(UPD.installed || ME.version || "")}</span>${UPD.available?`<span class="dot" aria-hidden="true">${ic("up",11)}</span>`:""}`;
+}
+async function checkUpdateBadge(){
+  try {
+    UPD = await call("GET","update");
+    if (!UPD.checked_at) UPD = await call("POST","update");
+    updBadge();
+  } catch(e) {}
+}
+function fmtDate(ts){ return ts ? new Date(ts*1000).toLocaleDateString(LANG==="en"?"en-GB":"ru-RU") : ""; }
+function srcLabel(s){ return {online:"онлайн", cache:"скачан", local:"копия на сервере"}[s] || s; }
+async function updatesPage(silent, force){
+  if (!silent) main().innerHTML = `<div class="head"><h1>Обновления</h1></div><div class="card muted">Загрузка…</div>`;
+  let d;
+  try { d = await call("GET", "updates" + (force ? "?force=1" : "")); }
+  catch(e) { main().innerHTML = `<div class="head"><h1>Обновления</h1></div><div class="card">${esc(e.message)}</div>`; return; }
+  UPV = d; UPD = d.update; updBadge();
+  const u = d.update, inst = d.master.installed, rel = d.releases;
+  const latestAgent = (rel.find(r => r.version === u.latest_version) || {}).agent_version || u.latest_agent || "";
+  const older = rel.filter(r => vcmp(r.version, inst) < 0);
+  const when = u.checked_at ? new Date(u.checked_at*1000).toLocaleString(LANG==="en"?"en-GB":"ru-RU") : "—";
+  const nodeRow = n => {
+    const newer = latestAgent && n.version && vcmp(latestAgent, n.version) > 0;
+    const other = rel.some(r => r.agent_version && n.version && r.agent_version !== n.version);
+    return `<div class="srow"><div class="sn">${n.flag||""} <b>${esc(n.name)}</b>${n.is_master?` <span class="badge s-new">master</span>`:""}<div class="muted small mono">${esc(n.host)}</div></div>
+      <div class="sv">${n.version?`<span class="vtag ${newer?"old":""}">Work-панель <b>${esc(n.version)}</b>${newer?" ↑":""}</span>`:`<span class="muted small">${n.status==="online"?"—":"нет связи"}</span>`}
+        ${n.updating&&n.updating!==n.version?`<div class="small muted">устанавливается ${esc(n.updating)}…</div>`:""}</div>
+      <div class="actions sa">
+        ${newer?`<button class="btn sm upd" id="nu${n.id}" onclick="updateNode(${n.id})">${ic("up",14)} Обновить до ${esc(latestAgent)}</button>`
+          :(n.version?`<span class="muted small">${latestAgent?"Актуальная версия":""}</span>`:"")}
+        ${n.version&&other?`<button class="btn sm" onclick="pickVersion('node',${n.id})">Другая версия…</button>`:""}</div></div>`;
+  };
+  main().innerHTML = `<div class="head"><h1>Обновления</h1><div><button class="btn" id="upd_check">${ic("reload",16)} Проверить обновления</button></div></div>
+  <div class="grid" style="grid-template-columns:minmax(0,1fr)">
+  <div class="card"><h3>Master-панель</h3>
+    <div class="kv"><span>Установлено</span><span><b class="notr">${esc(inst)}</b></span>
+      <span>Последняя версия</span><span><b class="notr">${esc(u.latest_version||"—")}</b>${u.created?` <span class="muted small">· ${fmtDate(u.created)}</span>`:""}</span>
+      <span>Проверено</span><span>${when}${u.source?` <span class="muted small">· ${esc(u.source.split("/")[2])}</span>`:""}</span>
+      <span>Подпись</span><span>${u.signed?stIcon("ok")+" Ed25519":stIcon("warn")+" <span class=\"small\">нет ключа — обновите вручную один раз</span>"}</span></div>
+    ${u.error?`<div class="small" style="color:var(--badfg);margin-top:8px;word-break:break-word">${esc(u.error)}</div>`:""}
+    ${u.available?`<div style="margin-top:10px;color:var(--okfg,#22c55e);display:flex;align-items:center;gap:6px">${ic("up",14)} <b>Доступна версия ${esc(u.latest_version)}</b></div>${u.notes?`<pre class="notes">${esc(u.notes)}</pre>`:""}`
+      :(u.latest_version&&!u.error?`<div class="muted small" style="margin-top:10px">У вас последняя версия.</div>`:"")}
+    <div class="actions" style="margin-top:12px">
+      ${u.available?`<button class="btn upd" onclick="updateMaster()">${ic("up",16)} Обновить master-панель до ${esc(u.latest_version)}</button>`:""}
+      ${older.length?`<button class="btn" onclick="pickVersion('master')">Откатить…</button>`:""}</div>
+    ${u.updating?`<div class="small muted" style="margin-top:8px"><span class="spin">${ic("reload",14)}</span> Устанавливается ${esc(u.updating)}…</div>`:""}
+  </div>
+  <div class="card"><h3>Серверы</h3>
+    ${d.nodes.length?`<div class="slist">${d.nodes.map(nodeRow).join("")}</div>`
+      :`<div class="muted small">Серверов пока нет.</div>`}
+    <div class="hint">Подключения клиентов при обновлении work-панели не прерываются.</div>
+  </div>
+  <div class="card"><h3>Доступные версии</h3>
+    ${rel.length?`<div class="tablewrap"><table><thead><tr><th>Версия</th><th>Work-панель</th><th>Дата</th><th>Где</th></tr></thead><tbody>${rel.map(r=>`<tr>
+      <td><b class="notr">${esc(r.version)}</b>${r.version===inst?` <span class="badge s-active">установлена</span>`:""}${r.notes?`<details><summary class="muted small" style="cursor:pointer">Что нового</summary><pre class="notes">${esc(r.notes)}</pre></details>`:""}</td>
+      <td class="notr">${esc(r.agent_version||"—")}</td><td class="small">${fmtDate(r.created)||"—"}</td>
+      <td class="small muted">${r.sources.map(srcLabel).join(", ")}</td></tr>`).join("")}</tbody></table></div>`
+      :`<div class="muted small">${esc(d.releases_error||"Список версий пока недоступен.")}</div>`}
+    <div class="hint">Версии берутся из релизов GitHub, зеркала, скачанных пакетов и копий, которые установщик сохраняет перед каждым обновлением (3 последние). Принимаются только пакеты с верной подписью.</div>
+    <details style="margin-top:10px"><summary class="muted small" style="cursor:pointer">Адрес проверки обновлений</summary>
+      <input type="text" id="s_upd_url" value="${esc(u.custom_url||"")}" placeholder="${esc(u.default_url)}" style="margin-top:8px">
+      <div class="hint">Пусто — по умолчанию: GitHub автора (pronitar/hidevp-panel), при недоступности — зеркало hidevp.ru.</div>
+      <button class="btn sm" style="margin-top:8px" onclick="saveUpdUrl()">Сохранить</button></details>
+  </div></div>`;
+  $("#upd_check").onclick = async e => { e.target.disabled = true; await updatesPage(true, true); toast("Проверено"); };
+}
+function vcmp(a, b){
+  const x = String(a||"0").match(/\d+/g)||[0], y = String(b||"0").match(/\d+/g)||[0];
+  for (let i = 0; i < 3; i++) { const d = (+x[i]||0) - (+y[i]||0); if (d) return d; }
+  return 0;
+}
+async function saveUpdUrl(){ await act(()=>call("PUT","settings",{update_url:$("#s_upd_url").value}),"Сохранено"); updatesPage(true, true); }
+
+function pickVersion(kind, id){
+  const rel = UPV.releases, n = kind === "node" ? UPV.nodes.find(x=>x.id===id) : null;
+  const cur = kind === "master" ? UPV.master.installed : n.version;
+  const key = kind === "master" ? "version" : "agent_version";
+  const seen = new Set();
+  const list = rel.filter(r => r[key] && r[key] !== cur && (kind === "node" || vcmp(r.version, cur) < 0) && !seen.has(r[key]) && seen.add(r[key]));
+  if (!list.length) return toast("Нет других версий", true);
+  const title = kind === "master" ? "Откат master-панели" : `Версия work-панели — «${n.name}»`;
+  modal(title, `<label>Установить версию</label>
+    <select id="pv_ver">${list.map(r=>`<option value="${esc(r.version)}" data-v="${esc(r[key])}">${kind==="master"?esc(r.version):`${esc(r.agent_version)} (пакет ${esc(r.version)})`}${r.created?" · "+fmtDate(r.created):""}</option>`).join("")}</select>
+    <div class="muted small" style="margin-top:6px">Сейчас установлена: <b class="notr">${esc(cur)}</b></div>
+    <div class="warnbox risk" id="pv_warn" style="margin-top:14px">${stIcon("warn")} <div><b>Откат — только на свой страх и риск.</b><br>
+      Старая версия может не поддерживать данные и настройки, созданные новой: часть функций может работать неправильно или не работать.
+      ${kind==="master"?"Перед откатом автоматически создаётся резервная копия базы (раздел «Резервные копии»). Панель перезапустится и будет недоступна около минуты.":"Подключения клиентов на время установки не прерываются."}
+      Вернуться на новую версию можно здесь же кнопкой «Обновить».</div></div>
+    <label class="check" style="margin-top:12px"><input type="checkbox" id="pv_ok"> Понимаю риски и хочу продолжить</label>`,
+    `<button class="btn" onclick="closeModal()">Отмена</button><button class="btn d" id="pv_go" disabled>Установить</button>`);
+  const sync = () => {
+    const o = $("#pv_ver").selectedOptions[0], back = vcmp(o.dataset.v, cur) < 0;
+    $("#pv_warn").style.display = back ? "" : "none";
+    $("#pv_ok").closest("label").style.display = back ? "" : "none";
+    $("#pv_go").textContent = tr(back ? "Откатить" : "Установить");
+    $("#pv_go").className = "btn " + (back ? "d" : "p");
+    $("#pv_go").disabled = back && !$("#pv_ok").checked;
+  };
+  $("#pv_ver").onchange = sync; $("#pv_ok").onchange = sync; sync();
+  $("#pv_go").onclick = () => {
+    const o = $("#pv_ver").selectedOptions[0], back = vcmp(o.dataset.v, cur) < 0;
+    closeModal();
+    if (kind === "master") installMaster(o.value, back);
+    else updateNode(id, o.value, back, o.dataset.v);
+  };
+}
+function updateMaster(){
+  if (!confirm(`Обновить master-панель до ${UPD.latest_version}? Панель перезапустится и будет недоступна около минуты. Если на этом сервере есть work-панель, она тоже обновится.`)) return;
+  installMaster("", false);
+}
+async function installMaster(version, rollback){
+  let r;
+  try { r = await call("POST","update/master", version ? {version, rollback} : {}); } catch(e) { return toast(e.message, true); }
+  const target = r.version;
+  modal(rollback ? "Откат master-панели" : "Обновление master-панели", `<div id="ust"><span class="spin">${ic("reload",16)}</span> Устанавливаю ${esc(target)}… Не закрывайте страницу.</div><pre class="ulog" id="ulog"></pre>`,
+    `<button class="btn" onclick="closeModal()">Закрыть</button>`);
+  const t0 = Date.now();
+  const poll = async () => {
+    if (!$("#ulog")) return;
+    try {
+      const d = await call("GET","update/log");
+      if (d.log) { $("#ulog").textContent = d.log; $("#ulog").scrollTop = 1e9; }
+      if (d.installed === target) {
+        $("#ust").innerHTML = `${stIcon("ok")} <b>Готово: установлена версия ${esc(target)}</b>`;
+        UPD = d; updBadge(); setTimeout(()=>location.reload(), 2500); return;
+      }
+    } catch(e) { $("#ust").innerHTML = `<span class="spin">${ic("reload",16)}</span> Панель перезапускается…`; }
+    if (Date.now() - t0 > 10*60*1000) { $("#ust").innerHTML = `${stIcon("warn")} Установка идёт слишком долго — проверьте на сервере: <span class="mono">hidevp</span>`; return; }
+    setTimeout(poll, 3000);
+  };
+  setTimeout(poll, 3000);
+}
+async function updateNode(id, version, rollback, agentVer){
+  const n = (typeof NODES !== "undefined" && NODES.find(x=>x.id===id)) || (UPV && UPV.nodes.find(x=>x.id===id)) || {name:"?"};
+  const target = agentVer || n.agent_latest || (UPV && (UPV.releases.find(r=>r.version===UPV.update.latest_version)||{}).agent_version) || "";
+  if (!version && !confirm(`Обновить work-панель на сервере «${n.name}» до ${target}? Подключения клиентов не прервутся.`)) return;
+  const b = $("#nu"+id); if (b) { b.disabled = true; b.innerHTML = `<span class="spin">${ic("reload",14)}</span> Устанавливаю…`; }
+  let r;
+  try { r = await call("POST",`nodes/${id}/update`, version ? {version, rollback} : {}); }
+  catch(e) { toast(e.message, true); if (b) { b.disabled = false; b.innerHTML = `${ic("up",14)} Обновить`; } return; }
+  toast("Установка запущена");
+  const want = r.version || target, from = tab, t0 = Date.now();
+  const poll = async () => {
+    if (tab !== from) return;
+    try {
+      const x = (await call("GET","nodes?live=1")).nodes.find(y=>y.id===id);
+      if (x && x.info && x.info.version === want) { toast(`«${n.name}»: work-панель ${want}`); return render(); }
+    } catch(e) {}
+    if (Date.now() - t0 < 5*60*1000) setTimeout(poll, 5000); else { toast("Установка идёт слишком долго — проверьте сервер: hidevp", true); render(); }
+  };
+  setTimeout(poll, 8000);
+}
+async function reloadAll(){
+  const b = $("#reloadBtn");
+  if (!confirm("Перезагрузить панель? Настройки будут заново отправлены на все серверы, Xray на них перезапустится (у клиентов соединение прервётся на пару секунд), бот переподключится.")) return;
+  b.disabled = true; b.innerHTML = `<span class="spin">${ic("reload",16)}</span><span class="lbl">Перезагрузка…</span>`;
+  try {
+    const r = await call("POST","reload");
+    const bad = r.nodes.filter(n=>!n.ok);
+    modal("Панель перезагружена", `<ul class="diag">${r.nodes.map(n=>`<li><span class="i">${stIcon(n.ok?"ok":"fail")}</span><div><b>${flag(n.country_code)} ${esc(n.name)}</b>${n.ok?'<div class="d">конфигурация применена, Xray перезапущен</div>':`<div class="d">${esc(n.error)}</div>`}</div></li>`).join("")||'<li class="muted">Серверов нет</li>'}
+      <li><span class="i">${stIcon(r.bot.running?"ok":"warn")}</span><div><b>Telegram-бот</b><div class="d">${r.bot.running?"@"+esc(r.bot.username)+" · "+esc(r.bot.route||""):esc(r.bot.error||"не запущен")}</div></div></li></ul>
+      <p class="muted small">Активных пользователей отправлено на серверы: ${r.users}</p>`, `<button class="btn p" onclick="closeModal()">OK</button>`);
+    $("#topst").textContent = "Перезагружено " + new Date().toLocaleTimeString("ru-RU");
+    if (bad.length) toast(`Ошибок: ${bad.length}`, true);
+    render(true);
+  } catch(e) { toast(e.message, true); }
+  b.disabled = false; b.innerHTML = `${ic("reload",16)}<span class="lbl">Перезагрузить панель</span>`;
+}
+async function logout(){ await call("POST","logout"); showLogin(); }
+function navOpen(open){
+  document.body.classList.toggle("navopen", open);
+  const q = $("#navq"); if (!q) return;
+  q.value = ""; q.dispatchEvent(new Event("input"));
+  if (open && window.matchMedia("(hover:hover)").matches) setTimeout(() => q.focus(), 150);
+}
+function go(t){
+  if (!TABS.some(x=>x[0]===t)) t = "overview";
+  tab = t; location.hash = t;
+  document.querySelectorAll(".nav button[data-t]").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  const cur = $("#navcur"), T = TABS.find(x=>x[0]===t); if (cur && T) { cur.textContent = T[1]; cur.dataset.ru = T[1]; }
+  clearInterval(timer);
+  render();
+  if (t === "overview" || t === "users" || t === "nodes") timer = setInterval(() => { if (!$("#modal")) render(true); }, 20000);
+}
+function render(silent){ return ({overview, nodes, vpns, users, stats: statsPage, promos, pay: payPage, notices: noticesPage, bot: botPage, backup: backupPage, updates: updatesPage, settings})[tab](silent); }
+const main = () => $("#main");
+
+async function overview(){
+  const d = await call("GET","overview");
+  const s = d.users_by_status;
+  main().innerHTML = `<div class="head"><h1>Обзор</h1><span class="muted small">Синхронизация: ${ago(d.sync.at)}${d.sync.took?` (${d.sync.took} ${LANG==="en"?"s":"с"})`:""}</span></div>
+  <div class="grid tiles">
+    <div class="card tile"><div class="l">Пользователи</div><div class="v">${d.users_total}</div><div class="muted small">активных: ${s.active||0}</div></div>
+    <div class="card tile"><div class="l">Онлайн сейчас</div><div class="v">${d.online}</div></div>
+    <div class="card tile"><div class="l">Трафик всего</div><div class="v">${fmt(d.traffic_total)}</div></div>
+    <div class="card tile"><div class="l">Оплаты за 30 дней</div><div class="v">${(d.revenue_30d||[]).length ? d.revenue_30d.map(r=>esc(r.text)).join(" · ") : "0 ⭐"}</div><div class="muted small">за всё время: ${(d.revenue_total||[]).length ? d.revenue_total.map(r=>esc(r.text)).join(" · ") : "—"}</div></div>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:14px">
+    <div class="card"><h3>Серверы</h3>${d.nodes.length ? d.nodes.map(n=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span><span class="flag">${flag(n.country_code)}</span> ${esc(n.name)} <span class="muted small">${esc(n.host)}</span></span>${badge(n.status)}</div>`).join("") : `<div class="muted">Серверов пока нет. <a href="#nodes" onclick="go('nodes')">Подключить</a></div>`}
+      <div class="muted small" style="margin-top:8px">VPN-подключений: ${d.vpns}</div></div>
+    <div class="card"><h3>Telegram-бот</h3>${d.bot.running ? `<div>${badge("online")} @${esc(d.bot.username)}</div>` : `<div>${badge("offline")} <span class="muted">${esc(d.bot.error||"не запущен")}</span></div><div class="small" style="margin-top:6px"><a href="#bot" onclick="go('bot')">Указать токен</a></div>`}
+      <h3 style="margin-top:16px">Статусы подписок</h3>${Object.entries(s).map(([k,v])=>`<span style="margin-right:10px">${badge(k)} ${v}</span>`).join("")||'<span class="muted">—</span>'}</div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Последние оплаты</h3>${d.payments.length ? `<div class="tbl"><table><tr><th>Дата</th><th>Пользователь</th><th>Тариф</th><th>Сумма</th></tr>${d.payments.map(p=>`<tr><td>${date(p.created)}</td><td>${esc(p.name||"")} ${p.tg_username?`<span class="muted">@${esc(p.tg_username)}</span>`:""}</td><td>${p.months} мес.</td><td>${money(p.amount, p.currency)} <span class="muted small">${esc(PAYM[p.method]||"")}</span>${p.promo_code?` <span class="muted small">🎟 ${esc(p.promo_code)}</span>`:""}</td></tr>`).join("")}</table></div>` : `<div class="muted">Оплат пока нет</div>`}</div>`;
+}
+function flag(cc){ cc=(cc||"").toLowerCase(); return /^[a-z]{2}$/.test(cc) ? `<span class="fl" style="background-image:url('/assets/flags/${cc}.svg')" title="${cc.toUpperCase()}"></span>` : `<span class="fl none">${ic("globe",16)}</span>`; }
+function flagTxt(cc){ return /^[A-Za-z]{2}$/.test(cc||"") ? cc.toUpperCase() + " · " : ""; }
+
+let NODES = [];
+function meter(label, pct, text){
+  const p = Math.max(0, Math.min(100, +pct || 0));
+  return `<div class="meter"><span class="muted">${label}</span><div class="bar"><i class="${p>85?"hi":p>60?"mid":""}" style="width:${p}%"></i></div><span class="v">${text}</span></div>`;
+}
+function upt(s){ if(!s) return "—"; const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), en=LANG==="en";
+  return d ? `${d} ${en?"d":"дн"} ${h} ${en?"h":"ч"}` : `${h} ${en?"h":"ч"} ${Math.floor(s%3600/60)} ${en?"min":"мин"}`; }
+let NODES_META = {};
+async function nodes(silent){
+  const r = await call("GET", "nodes?live=1"); NODES = r.nodes; NODES_META = r;
+  main().innerHTML = `<div class="head"><h1>Серверы</h1><div style="display:flex;gap:10px;align-items:center"><span class="vtag">Master-панель <b>${esc(r.master_version||"?")}</b></span><button class="btn p" onclick="addNode()">+ Подключить сервер</button></div></div>
+  ${NODES.length ? `<div class="grid nodes">${NODES.map(n=>{const i=n.info||{};return `<div class="card node">
+    <div class="top"><span class="flag">${flag(n.country_code)}</span><div style="flex:1;min-width:0"><div class="name">${esc(n.name)}</div><div class="muted small">${esc([n.country,n.city].filter(Boolean).join(", ")||"Страна не определена")}</div></div>${badge(n.status)}</div>
+    <div class="vers">
+      ${n.is_master?`<span class="vtag">Master-панель <b>${esc(n.master_version)}</b></span>`:""}
+      <span class="vtag ${n.agent_outdated?"old":""}" ${n.agent_outdated?`title="Доступна ${esc(n.agent_latest)}"`:""}>Work-панель <b>${esc(i.version||"—")}</b>${n.agent_outdated?" ↑":""}</span>
+      <span class="vtag">Xray <b>${esc((i.xray||"").split(" ")[1]||"—")}</b>${i.xray_running===false?' <span style="color:var(--badfg)">остановлен</span>':""}</span>
+    </div>
+    ${i.mem_total ? meter("CPU", i.cpu_pct ?? (i.load && i.cpus ? i.load[0]/i.cpus*100 : 0), `${i.cpu_pct!=null?Math.round(i.cpu_pct)+"%":"—"} · ${i.cpus||"?"} CPU`)
+      + meter("Память", i.mem_used/i.mem_total*100, `${fmt(i.mem_used)} / ${fmt(i.mem_total)}`)
+      + (i.disk_total ? meter("Диск", i.disk_used/i.disk_total*100, `${fmt(i.disk_used)} / ${fmt(i.disk_total)}`) : "") : ""}
+    <div class="kv"><span>IP</span><span class="mono">${esc(n.ip||n.host)}</span><span>Порт API</span><span>${n.port}</span>
+      <span>Нагрузка (LA)</span><span>${i.load?i.load.join(" / "):"—"}</span><span>Аптайм</span><span>${upt(i.uptime)}</span>
+      <span>VPN</span><span>${n.vpn_count}</span><span>Связь</span><span>${ago(n.last_seen)}</span></div>
+    ${n.error?`<div class="small" style="color:var(--badfg);margin-bottom:10px;word-break:break-word">${esc(n.error)}</div>`:""}
+    ${n.can_update?`<div style="margin-bottom:10px"><button class="btn sm upd" id="nu${n.id}" onclick="updateNode(${n.id})">${ic("up",14)} Обновить work-панель до ${esc(n.agent_latest)}</button></div>`:""}
+    <div class="actions"><button class="btn sm p" onclick="nodeDiag(${n.id})">Проверить</button><button class="btn sm" onclick="nodeAct(${n.id},'refresh')">Обновить</button><button class="btn sm" onclick="nodeAct(${n.id},'restart')">Перезапуск Xray</button><button class="btn sm" onclick="editNode(${n.id})">Изменить</button><button class="btn sm d" onclick="delNode(${n.id})">Удалить</button></div></div>`}).join("")}</div>`
+  : `<div class="card empty">Серверов пока нет.<br>Установите work-панель на VPS и вставьте выданный ключ.<br><br><button class="btn p" onclick="addNode()">+ Подключить сервер</button></div>`}`;
+}
+function addNode(){
+  modal("Подключение сервера", `<label>Ключ work-панели</label><textarea id="nk" class="mono" placeholder="NODE-eyJoIjoi..."></textarea>
+    <div class="hint">Ключ выводится в конце установки work-панели. Повторно: <span class="mono">hidevp-node key</span> на сервере.</div>
+    <label>Название (необязательно)</label><input type="text" id="nn" placeholder="Определится по стране и городу">`,
+    `<button class="btn" onclick="closeModal()">Отмена</button><button class="btn p" id="nb">Подключить</button>`);
+  $("#nb").onclick = async () => {
+    $("#nb").disabled = true; $("#nb").textContent = "Подключение…";
+    try { await act(()=>call("POST","nodes",{key:$("#nk").value, name:$("#nn").value}), "Сервер подключён"); closeModal(); nodes(); }
+    catch(e) { $("#nb").disabled = false; $("#nb").textContent = "Подключить"; }
+  };
+}
+function editNode(id){
+  const n = NODES.find(x=>x.id===id);
+  modal("Сервер: "+n.name, `<label>Название</label><input type="text" id="en" value="${esc(n.name)}">
+    <label>Код страны для флага</label><input type="text" id="ec" value="${esc(n.country_code)}" maxlength="2" placeholder="NL">
+    <div class="hint">Определяется автоматически по IP. Меняйте, только если определилось неверно.</div>
+    <label>Новый ключ (если перевыпускали на сервере)</label><textarea id="ek" class="mono" placeholder="оставьте пустым"></textarea>`,
+    `<button class="btn" onclick="closeModal()">Отмена</button><button class="btn p" id="eb">Сохранить</button>`);
+  $("#eb").onclick = async () => { await act(()=>call("PATCH","nodes/"+id,{name:$("#en").value,country_code:$("#ec").value,key:$("#ek").value}),"Сохранено"); closeModal(); nodes(); };
+}
+async function nodeDiag(id){
+  const n = NODES.find(x=>x.id===id);
+  modal("Проверка: " + n.name, `<div class="muted"><span class="spin" style="vertical-align:middle">${ic("reload",16)}</span> Проверяю Xray, порты, сайт-маскировку и выход в интернет через VPN… (до минуты)</div>`, `<button class="btn" onclick="closeModal()">Закрыть</button>`);
+  try {
+    const r = await call("POST", `nodes/${id}/diag`);
+    if (!$("#modal")) return;
+
+    const fails = r.checks.filter(c=>c.status==="fail").length;
+    $("#modal .mb").innerHTML = `<div>${fails ? `<b style="color:var(--badfg)">Найдено проблем: ${fails}</b>` : `<b style="color:var(--okfg)">Всё в порядке</b>`}</div>
+      <ul class="diag">${r.checks.map(c=>`<li><span class="i">${stIcon(c.status)}</span><div><div>${esc(c.name)}</div>${c.detail?`<div class="d">${esc(c.detail)}</div>`:""}${c.status!=="ok"&&c.hint?`<div class="h">${esc(c.hint)}</div>`:""}</div></li>`).join("")}</ul>
+      ${!fails?`<p class="muted small">Сервер работает. Если в Happ всё равно нет интернета: обновите подписку в Happ (потяните список вниз / кнопка обновления), проверьте время на телефоне, попробуйте другой транспорт (XHTTP) или порт.</p>`:""}
+      ${r.error_log?`<label>Последние строки лога Xray</label><pre class="log">${esc(r.error_log)}</pre>`:""}`;
+  } catch(e) { if ($("#modal")) $("#modal .mb").innerHTML = `<div style="color:var(--badfg)">${esc(e.message)}</div>`; }
+}
+async function nodeAct(id,a){ await act(()=>call("POST",`nodes/${id}/${a}`), a==="refresh"?"Обновлено":"Xray перезапущен"); nodes(); }
+async function delNode(id){ if(!confirm("Удалить сервер и все его VPN-подключения? Xray на сервере будет очищен.")) return; await act(()=>call("DELETE","nodes/"+id),"Сервер удалён"); nodes(); }
+
+const SNIS = ["www.microsoft.com","www.apple.com","dl.google.com","www.samsung.com","www.nvidia.com","www.amd.com","www.cloudflare.com","github.com","www.yahoo.com","addons.mozilla.org","www.speedtest.net"];
+const FPS = [["chrome","Chrome"],["firefox","Firefox"],["safari","Safari"],["ios","iOS"],["android","Android"],["edge","Edge"],["random","Случайный браузер"],["randomized","Полностью случайный"]];
+const TR = {tcp:["TCP + Vision","Самый быстрый, рекомендуется"],xhttp:["XHTTP","Похож на обычный HTTPS-трафик, устойчив к блокировкам"],grpc:["gRPC","Мультиплексирование, хорош для нестабильных сетей"]};
+let VPNS = [];
+async function vpns(){
+  let nr; [VPNS, nr] = await Promise.all([call("GET","vpns"), call("GET","nodes")]); NODES = nr.nodes;
+  main().innerHTML = `<div class="head"><h1>VPN-подключения</h1><button class="btn p" onclick="editVpn()">+ Создать</button></div>
+  ${VPNS.length ? `<div class="card tbl"><table><tr><th>Название</th><th>Сервер</th><th>Порт</th><th>Транспорт</th><th>Маскировка</th><th>Статус</th><th></th></tr>
+    ${VPNS.map(v=>`<tr class="click" onclick="editVpn(${v.id})"><td><b>${esc(v.name)}</b></td><td>${v.node?`<span class="fln">${flag(v.node.country_code)}${esc(v.node.name)}</span>`:"—"}</td><td>${v.port}</td><td>${TR[v.transport][0]}</td>
+    <td><span class="mono">${esc(v.sni)}</span> <span class="muted small">${esc(v.fingerprint)}</span></td><td>${v.enabled?badge("active").replace("Активна","Включено"):badge("disabled").replace("Заблокирован","Выключено")}</td>
+    <td><button class="btn sm d" onclick="event.stopPropagation();delVpn(${v.id})">Удалить</button></td></tr>`).join("")}</table></div>`
+  : `<div class="card empty">${NODES.length?"VPN-подключений пока нет.":"Сначала подключите сервер во вкладке «Серверы»."}<br><br>${NODES.length?'<button class="btn p" onclick="editVpn()">+ Создать</button>':'<button class="btn p" onclick="go(\'nodes\')">К серверам</button>'}</div>`}
+  <p class="muted small">Каждое подключение — это VLESS + Reality на выбранном сервере. Все активные пользователи автоматически получают доступ ко всем включённым подключениям.</p>`;
+}
+function editVpn(id){
+  if (!NODES.length) { toast("Сначала подключите сервер", true); return go("nodes"); }
+  const v = VPNS.find(x=>x.id===id) || {transport:"tcp", port:443, sni:"www.microsoft.com", fingerprint:"chrome", enabled:1, node_id:NODES[0].id, name:"", path:"", service_name:"", sort:0};
+  const custom = !SNIS.includes(v.sni);
+  modal(id ? "Изменить VPN" : "Новое VPN-подключение", `
+    <label>Сервер, через который пойдёт трафик</label>
+    <select id="vn">${NODES.map(n=>`<option value="${n.id}" ${n.id===v.node_id?"selected":""}>${flagTxt(n.country_code)}${esc(n.name)} — ${esc(n.ip||n.host)}</option>`).join("")}</select>
+    <div class="row2"><div><label>Название (видно в Happ)</label><input type="text" id="vname" value="${esc(v.name)}" placeholder="Например: Нидерланды"></div>
+      <div><label>Порт</label><input type="number" id="vport" value="${v.port}" min="1" max="65535"><div class="hint" id="vport_hint">443 — лучший вариант маскировки</div></div></div>
+    <label>Протокол / транспорт</label>
+    <div class="seg" id="vtr">${Object.entries(TR).map(([k,[t,d]])=>`<label class="${k===v.transport?"on":""}"><input type="radio" name="tr" value="${k}" ${k===v.transport?"checked":""}><b>${t}</b><span class="small muted">${d}</span></label>`).join("")}</div>
+    <div id="vextra"></div>
+    <h3 style="margin-top:18px">Скрытие трафика (Reality)</h3>
+    <div class="row2"><div><label>Маскироваться под сайт (SNI)</label>
+      <select id="vsni">${SNIS.map(s=>`<option ${s===v.sni?"selected":""}>${s}</option>`).join("")}<option value="__custom" ${custom?"selected":""}>Свой домен…</option></select>
+      <input type="text" id="vsnic" value="${custom?esc(v.sni):""}" placeholder="example.com" style="margin-top:6px;${custom?"":"display:none"}"></div>
+      <div><label>Отпечаток TLS (uTLS)</label><select id="vfp">${FPS.map(([k,t])=>`<option value="${k}" ${k===v.fingerprint?"selected":""}>${t}</option>`).join("")}</select></div></div>
+    <div class="hint">Для DPI соединение выглядит как обращение к выбранному сайту. Сайт должен поддерживать TLS 1.3 и HTTP/2; лучше брать такой, что доступен из страны сервера и не заблокирован в вашей.</div>
+    <div class="row2"><div><label>Порядок в списке</label><input type="number" id="vsort" value="${v.sort||0}"></div><div></div></div>
+    <label class="check"><input type="checkbox" id="ven" ${v.enabled?"checked":""}> Включено</label>
+    <div id="vperr"></div>
+    ${id?`<label class="check"><input type="checkbox" id="vregen"> Перевыпустить ключи Reality (клиентам нужно обновить подписку)</label>
+    <hr class="sep"><div class="small muted">Публичный ключ: <span class="mono">${esc(v.public_key)}</span><br>Short ID: <span class="mono">${esc(v.short_id)}</span></div>`:""}`,
+    `<button class="btn" onclick="closeModal()">Отмена</button><button class="btn p" id="vb">${id?"Сохранить":"Создать"}</button>`);
+  const extra = () => {
+    const t = document.querySelector("input[name=tr]:checked").value;
+    document.querySelectorAll("#vtr label").forEach(l => l.classList.toggle("on", l.querySelector("input").checked));
+    $("#vextra").innerHTML = t === "xhttp" ? `<label>Путь XHTTP</label><input type="text" id="vpath" value="${esc(v.path)}" placeholder="сгенерируется автоматически">`
+      : t === "grpc" ? `<label>Имя gRPC-сервиса</label><input type="text" id="vsvc" value="${esc(v.service_name)}" placeholder="сгенерируется автоматически">` : "";
+  };
+  document.querySelectorAll("input[name=tr]").forEach(r => r.onchange = extra); extra();
+  $("#vsni").onchange = () => { $("#vsnic").style.display = $("#vsni").value === "__custom" ? "" : "none"; };
+  let portTouched = !!id;
+  $("#vport").oninput = () => { portTouched = true; portHint(); };
+  const busyOn = nid => {
+    const n = NODES.find(x => x.id === nid) || {}; const b = Object.assign({}, (n.info || {}).busy_ports || {});
+    VPNS.filter(x => x.node_id === nid && x.id !== id).forEach(x => b[x.port] = "VPN «" + x.name + "»");
+    b[n.port] = "work-панель"; return b;
+  };
+  const portHint = () => {
+    const CAND = [443, 8443, 2053, 2083, 2087, 2096, 9443, 10443];
+    const b = busyOn(+$("#vn").value), cur = $("#vport").value,
+          list = Object.entries(b).filter(([p, w]) => CAND.includes(+p) || String(w).startsWith("VPN"));
+    $("#vport_hint").innerHTML = b[cur] ? `<span style="color:var(--badfg)">Порт ${esc(cur)} занят: ${esc(b[cur])}</span>`
+      : (list.length ? "Заняты на сервере: " + list.map(([p,w]) => `${p} (${esc(w)})`).join(", ") : "443 — лучший вариант маскировки");
+  };
+  const pickPort = () => {
+    if (!portTouched) { const b = busyOn(+$("#vn").value); $("#vport").value = [443, 8443, 2053, 2083, 2087, 2096, 9443, 10443].find(p => !b[p]) || 20443; }
+    portHint();
+  };
+  $("#vn").addEventListener("change", pickPort); pickPort();
+  const save = async (force) => {
+    const t = document.querySelector("input[name=tr]:checked").value;
+    const body = {node_id:+$("#vn").value, name:$("#vname").value, port:+$("#vport").value, transport:t,
+      sni: $("#vsni").value === "__custom" ? $("#vsnic").value : $("#vsni").value, fingerprint:$("#vfp").value,
+      path: $("#vpath") ? $("#vpath").value : "", service_name: $("#vsvc") ? $("#vsvc").value : "",
+      enabled: $("#ven").checked, sort: +$("#vsort").value, regen_keys: $("#vregen") ? $("#vregen").checked : false, force: !!force};
+    const btn = $("#vb"), label = btn.textContent;
+    btn.disabled = true; btn.innerHTML = `<span class="spin" style="vertical-align:middle">${ic("reload",14)}</span> Проверяю порт…`;
+    $("#vperr").innerHTML = "";
+    try {
+      await call(id?"PATCH":"POST", id?"vpns/"+id:"vpns", body);
+      toast(id?"Сохранено":"VPN создан. Применится на сервере в течение пары секунд");
+      closeModal(); vpns();
+    } catch(e) {
+      btn.disabled = false; btn.textContent = label;
+      const d = e.data || {};
+      if (d.code === "port_busy" || d.code === "port_unreachable") {
+        $("#vperr").innerHTML = `<div class="card" style="margin-top:14px;border-color:var(--bad);background:var(--badbg)">
+          <div style="color:var(--badfg);font-weight:600">${esc(e.message)}</div>
+          <div class="small" style="margin-top:4px;color:var(--badfg)">${d.code==="port_busy" ? "Выберите другой порт." : "Скорее всего, порт закрыт фаерволом хостера или фильтруется по пути."}</div>
+          ${d.suggest && d.suggest.length ? `<div class="small" style="margin:10px 0 6px">Проверенные свободные порты — заменить на:</div>
+            <div class="actions">${d.suggest.map(p=>`<button class="btn sm p" type="button" data-port="${p}">Использовать ${p}</button>`).join("")}</div>`
+            : `<div class="small" style="margin-top:8px">Свободных проверенных портов не нашлось — введите другой порт вручную.</div>`}
+          ${d.can_force ? `<div style="margin-top:10px"><button class="btn sm" type="button" id="vforce">Сохранить всё равно</button></div>` : ""}
+        </div>`;
+        document.querySelectorAll("#vperr [data-port]").forEach(b => b.onclick = () => { $("#vport").value = b.dataset.port; portTouched = true; portHint(); save(false); });
+        if ($("#vforce")) $("#vforce").onclick = () => save(true);
+        $("#vperr").scrollIntoView({behavior: "smooth", block: "nearest"});
+      } else toast(e.message, true);
+    }
+  };
+  $("#vb").onclick = () => save(false);
+}
+async function delVpn(id){ if(!confirm("Удалить это VPN-подключение?")) return; await act(()=>call("DELETE","vpns/"+id),"Удалено"); vpns(); }
+
+let USERS = [], UQ = "", US = "";
+async function users(silent){
+  USERS = await call("GET","users");
+  if (silent && $("#ulist")) return drawUsers();
+  main().innerHTML = `<div class="head"><h1>Пользователи</h1><div class="filters">
+    <input type="text" id="uq" placeholder="Поиск: имя, @username, телефон, ID" value="${esc(UQ)}">
+    <select id="us"><option value="">Все статусы</option>${["active","new","expired","traffic","suspended","disabled"].map(s=>`<option value="${s}" ${US===s?"selected":""}>${STATUS[s]}</option>`).join("")}</select>
+    <button class="btn p" onclick="newUser()">+ Добавить</button></div></div><div id="ulist"></div>
+    <p class="muted small">Пользователи регистрируются через Telegram-бота. Ручное добавление — для своих и тестов.</p>`;
+  $("#uq").oninput = e => { UQ = e.target.value; drawUsers(); };
+  $("#us").onchange = e => { US = e.target.value; drawUsers(); };
+  drawUsers();
+}
+function drawUsers(){
+  const q = UQ.trim().toLowerCase();
+  const list = USERS.filter(u => (!US || u.status === US) && (!q || [u.name,u.tg_username,u.tg_id,u.id,u.note,u.phone,u.phone_fmt].join(" ").toLowerCase().includes(q)));
+  $("#ulist").innerHTML = list.length ? `<div class="card tbl"><table><tr><th>#</th><th>Пользователь</th><th>Статус</th><th>До</th><th>Трафик</th><th>Устройства</th><th>Торренты</th></tr>
+    ${list.map(u=>`<tr class="click" onclick="editUser(${u.id})"><td class="muted">${u.id}</td>
+    <td><b>${esc(u.name||"Без имени")}</b><div class="muted small">${u.tg_username?"@"+esc(u.tg_username):(u.tg_id?"ID "+u.tg_id:"добавлен вручную")}${u.phone_fmt?" · "+esc(u.phone_fmt):""}</div></td>
+    <td>${badge(u.status)}</td><td>${u.forever?"♾ Бессрочно":date(u.expires_at)}</td>
+    <td>${fmt(u.used)}${u.traffic_limit?` <span class="muted">/ ${fmt(u.traffic_limit)}</span><div class="progress"><i style="width:${Math.min(100,u.used/u.traffic_limit*100)}%"></i></div>`:' <span class="muted">/ ∞</span>'}</td>
+    <td>${u.online_ips.length?`<span style="color:var(--ok)">● ${u.online_ips.length}</span>`:'<span class="muted">0</span>'} <span class="muted">/ ${u.device_limit||"∞"}</span></td>
+    <td>${u.block_torrent?"🚫 блок":'<span class="muted">разрешены</span>'}</td></tr>`).join("")}</table></div>`
+    : `<div class="card empty">${USERS.length?"Никого не найдено":"Пользователей пока нет. Они появятся после /start в боте."}</div>`;
+}
+function newUser(){
+  modal("Новый пользователь", `<label>Имя</label><input type="text" id="nu_n">
+    <div class="row2"><div><label>Подписка, дней</label><input type="number" id="nu_d" value="30" min="0"></div>
+    <div><label>Лимит трафика, ГБ (0 — без лимита)</label><input type="number" id="nu_t" value="0" min="0"></div></div>
+    <div class="row2"><div><label>Лимит устройств (0 — без лимита)</label><input type="number" id="nu_dev" value="0" min="0"></div>
+      <div><label>&nbsp;</label><label class="check" style="margin-top:8px"><input type="checkbox" id="nu_f" onchange="$('#nu_d').disabled=this.checked"> ♾ Бессрочная подписка</label></div></div>
+    <label>Заметка</label><input type="text" id="nu_note">`,
+    `<button class="btn" onclick="closeModal()">Отмена</button><button class="btn p" id="nu_b">Создать</button>`);
+  $("#nu_b").onclick = async () => {
+    const u = await act(()=>call("POST","users",{name:$("#nu_n").value,forever:$("#nu_f").checked,days:+$("#nu_d").value,traffic_limit_gb:+$("#nu_t").value,device_limit:+$("#nu_dev").value,note:$("#nu_note").value}),"Пользователь создан");
+    closeModal(); await users(); editUser(u.id);
+  };
+}
+async function editUser(id){
+  const u = await call("GET","users/"+id);
+  modal(`Пользователь #${u.id}`, `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${badge(u.status)}
+      <span class="muted small">${u.tg_id?`Telegram: ${u.tg_username?"@"+esc(u.tg_username)+", ":""}ID ${u.tg_id}`:"Без Telegram"} · создан ${date(u.created)}</span></div>
+    ${u.status==="suspended"?`<div class="small" style="color:var(--warnfg);margin-top:8px">Приостановлен до ${date(u.suspended_until)} за превышение числа устройств <button class="btn sm" onclick="userAct(${u.id},'unsuspend')">Снять</button></div>`:""}
+    <div class="row2"><div><label>Имя</label><input type="text" id="u_name" value="${esc(u.name)}"></div>
+      <div><label>Телефон (для входа на сайт)</label><input type="text" id="u_phone" value="${esc(u.phone_fmt)}" placeholder="не привязан"></div></div>
+    <div class="row2"><div><label>Подписка действует до</label><input type="datetime-local" id="u_exp" value="${toLocalInput(u.expires_at)}" ${u.forever?"disabled":""}></div>
+      <div><label>&nbsp;</label><label class="check" style="margin-top:8px"><input type="checkbox" id="u_forever" ${u.forever?"checked":""}> ♾ Бессрочная подписка</label></div></div>
+    <div class="actions" id="u_ext" style="margin-top:8px;${u.forever?"display:none":""}">${[7,30,90,180,365].map(d=>`<button class="btn sm" onclick="userAct(${u.id},'extend',{days:${d}})">+${d} дн</button>`).join("")}</div>
+    <div class="row2"><div><label>Лимит трафика, ГБ (0 — без лимита)</label><input type="number" id="u_tl" value="${u.traffic_limit?+(u.traffic_limit/GB).toFixed(2):0}" min="0" step="0.5"></div>
+      <div><label>Лимит устройств (0 — без лимита)</label><input type="number" id="u_dl" value="${u.device_limit}" min="0"></div></div>
+    <div class="row2"><div><label>Использовано</label><div style="padding:9px 0">${fmt(u.used)} <span class="muted small">↑ ${fmt(u.used_up)} ↓ ${fmt(u.used_down)}</span> <button class="btn sm" onclick="if(confirm('Сбросить счётчик трафика?'))userAct(${u.id},'reset_traffic')">Сбросить</button></div></div>
+      <div><label>Онлайн (IP за последние 3 мин)</label><div style="padding:9px 0" class="mono">${u.online_ips.length?u.online_ips.map(esc).join("<br>"):'<span class="muted">нет</span>'}</div></div></div>
+    <div class="row2"><div><label>Язык бота и страницы</label><select id="u_lang"><option value="ru" ${u.lang!=="en"?"selected":""}>Русский</option><option value="en" ${u.lang==="en"?"selected":""}>English</option></select></div><div></div></div>
+    <label class="check"><input type="checkbox" id="u_bt" ${u.block_torrent?"checked":""}> Блокировать торренты</label>
+    <label class="check"><input type="checkbox" id="u_en" ${u.enabled?"checked":""}> Доступ разрешён (снимите, чтобы заблокировать)</label>
+    <label>Заметка</label><input type="text" id="u_note" value="${esc(u.note)}">
+    <hr class="sep">
+    <label>Страница пользователя</label>${copyField(u.page_url)}
+    <label>Ссылка подписки (Happ)</label>${copyField(u.sub_url)}
+    <div class="actions" style="margin-top:8px"><a class="btn sm" href="${esc(u.page_url)}" target="_blank">Открыть страницу</a>
+      <button class="btn sm" onclick="if(confirm('Выпустить новые ссылки и UUID? Старые перестанут работать.'))userAct(${u.id},'regen')">Перевыпустить ссылки</button>
+      ${u.tg_id?`<button class="btn sm" onclick="msgUser(${u.id})">Написать в Telegram</button>`:""}</div>
+    ${u.payments.length?`<hr class="sep"><h3>Оплаты</h3>${u.payments.map(p=>`<div class="small">${date(p.created)} — ${p.months} мес., ${money(p.amount, p.currency)}${p.promo_code?` · 🎟 ${esc(p.promo_code)}${p.full_amount>p.amount?` (${money(p.full_amount, p.currency)})`:""}`:""}</div>`).join("")}`:""}`,
+    `<button class="btn d" style="margin-right:auto" onclick="delUser(${u.id})">Удалить</button><button class="btn" onclick="closeModal()">Закрыть</button><button class="btn p" id="u_save">Сохранить</button>`);
+  $("#u_forever").onchange = e => { $("#u_exp").disabled = e.target.checked; $("#u_ext").style.display = e.target.checked ? "none" : ""; };
+  $("#u_save").onclick = async () => {
+    const exp = $("#u_exp").value ? new Date($("#u_exp").value).getTime()/1000 : 0;
+    await act(()=>call("PATCH","users/"+id,{name:$("#u_name").value,lang:$("#u_lang").value,phone:$("#u_phone").value,expires_at:exp,forever:$("#u_forever").checked,traffic_limit_gb:+$("#u_tl").value,device_limit:+$("#u_dl").value,block_torrent:$("#u_bt").checked,enabled:$("#u_en").checked,note:$("#u_note").value}),"Сохранено");
+    closeModal(); users();
+  };
+}
+async function userAct(id, a, body){ await act(()=>call("POST",`users/${id}/${a}`,body||{}),"Готово"); await users(true); editUser(id); }
+function msgUser(id){
+  const text = prompt("Сообщение пользователю в Telegram:");
+  if (text) act(()=>call("POST",`users/${id}/message`,{text}),"Отправлено");
+}
+async function delUser(id){ if(!confirm("Удалить пользователя безвозвратно?")) return; await act(()=>call("DELETE","users/"+id),"Удалён"); closeModal(); users(); }
+
+let PROMOS = [];
+const PSTATE = {active:["active","Активен"], disabled:["disabled","Отключён"], expired:["expired","Истёк"], exhausted:["traffic","Исчерпан"]};
+async function promos(){
+  PROMOS = await call("GET","promos");
+  main().innerHTML = `<div class="head"><h1>Промокоды</h1><button class="btn p" onclick="editPromo()">+ Создать промокод</button></div>
+  ${PROMOS.length ? `<div class="card tbl"><table><tr><th>Код</th><th>Скидка</th><th>Тарифы</th><th>Действует до</th><th>Использован</th><th>Тип</th><th>Для кого</th><th>Статус</th></tr>
+    ${PROMOS.map(p=>`<tr class="click" onclick="editPromo(${p.id})"><td><b class="mono" style="font-size:13px">${esc(p.code)}</b>${p.note?`<div class="muted small">${esc(p.note)}</div>`:""}</td>
+      <td><b>−${p.discount}%</b></td><td>${p.plans.length?p.plans.map(m=>m+" мес.").join(", "):"все"}</td>
+      <td>${p.expires_at?date(p.expires_at):"бессрочно"}</td><td>${p.used}${p.max_uses?" / "+p.max_uses:" / ∞"}</td>
+      <td>${p.reusable?"многоразовый":"единоразовый"}</td><td>${p.new_only?"только новые":"все"}</td>
+      <td><span class="badge s-${PSTATE[p.state][0]}">${PSTATE[p.state][1]}</span></td></tr>`).join("")}</table></div>`
+  : `<div class="card empty">Промокодов пока нет.<br><br><button class="btn p" onclick="editPromo()">+ Создать промокод</button></div>`}
+  <p class="muted small">Пользователь вводит промокод в боте (кнопка «🎟 Промокод» или /promo КОД) либо переходит по ссылке t.me/бот?start=КОД. Скидка применяется к цене тарифа при любом способе оплаты; при скидке 100% подписка активируется без оплаты.</p>`;
+}
+function randCode(){ const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c=""; for(let i=0;i<8;i++) c+=a[Math.floor(Math.random()*a.length)]; return c; }
+async function editPromo(id){
+  const PO = (await call("GET","payments")).config.plans;
+  const p = id ? await call("GET","promos/"+id) : {code:randCode(), discount:10, plans:[], expires_at:0, max_uses:0, reusable:0, new_only:0, enabled:1, note:"", used:0};
+  modal(id ? "Промокод " + p.code : "Новый промокод", `
+    <div class="row2"><div><label>Код</label><div class="copy"><input type="text" id="pr_code" value="${esc(p.code)}" maxlength="32" class="mono"><button class="btn sm" type="button" onclick="$('#pr_code').value=randCode()">⟳</button></div>
+      <div class="hint">Латинские буквы, цифры, - и _. Регистр не важен.</div></div>
+      <div><label>Скидка, %</label><input type="number" id="pr_disc" value="${p.discount}" min="1" max="100"><div class="hint">100% — бесплатно</div></div></div>
+    <label>Тарифы, на которые действует</label>
+    <div class="actions">${[...new Set([...PO, ...p.plans])].sort((a,b)=>a-b).map(m=>`<label class="check" style="margin:0 12px 0 0"><input type="checkbox" class="pr_plan" value="${m}" ${p.plans.includes(m)?"checked":""}> ${m} мес.</label>`).join("")}</div>
+    <div class="hint">Ничего не отмечено — действует на все тарифы.</div>
+    <div class="row2"><div><label>Срок действия</label><input type="datetime-local" id="pr_exp" value="${toLocalInput(p.expires_at)}"><div class="hint">Пусто — бессрочно</div></div>
+      <div><label>Общее количество использований</label><input type="number" id="pr_max" value="${p.max_uses}" min="0"><div class="hint">0 — без ограничений. Использован: ${p.used}</div></div></div>
+    <label>Тип</label>
+    <select id="pr_reuse"><option value="0" ${!p.reusable?"selected":""}>Единоразовый — один раз на пользователя</option><option value="1" ${p.reusable?"selected":""}>Многоразовый — пользователь может применять при каждой оплате</option></select>
+    <label>Для кого</label>
+    <select id="pr_new"><option value="0" ${!p.new_only?"selected":""}>Для всех пользователей</option><option value="1" ${p.new_only?"selected":""}>Только для новых (ещё ни разу не платили)</option></select>
+    <label>Заметка (видна только в админке)</label><input type="text" id="pr_note" value="${esc(p.note)}" placeholder="Например: для канала">
+    <label class="check"><input type="checkbox" id="pr_en" ${p.enabled?"checked":""}> Включён</label>
+    ${id && p.bot_link ? `<label>Ссылка для активации в боте</label>${copyField(p.bot_link)}` : ""}
+    ${id && p.stats.c ? `<hr class="sep"><h3>Использования: ${p.stats.c}</h3><div class="muted small">Пользователей: ${p.stats.u} · оплачено ${p.stats.paid} ⭐ · скидка ${p.stats.saved} ⭐</div>
+      ${p.uses.slice(0,20).map(x=>`<div class="small">${date(x.created)} — ${esc(x.name||"#"+x.user_id)} ${x.tg_username?"@"+esc(x.tg_username):""}: ${x.months} мес., ${money(x.amount, x.currency)} (${money(x.full_amount, x.currency)})</div>`).join("")}` : ""}`,
+    `${id?`<button class="btn d" style="margin-right:auto" onclick="delPromo(${id})">Удалить</button>`:""}<button class="btn" onclick="closeModal()">Отмена</button><button class="btn p" id="pr_save">${id?"Сохранить":"Создать"}</button>`);
+  $("#pr_save").onclick = async () => {
+    const body = {code:$("#pr_code").value.trim(), discount:+$("#pr_disc").value, plans:[...document.querySelectorAll(".pr_plan:checked")].map(x=>+x.value),
+      expires_at:$("#pr_exp").value?new Date($("#pr_exp").value).getTime()/1000:0, max_uses:+$("#pr_max").value,
+      reusable:$("#pr_reuse").value==="1", new_only:$("#pr_new").value==="1", enabled:$("#pr_en").checked, note:$("#pr_note").value};
+    await act(()=>call(id?"PATCH":"POST", id?"promos/"+id:"promos", body), id?"Сохранено":"Промокод создан");
+    closeModal(); promos();
+  };
+}
+async function delPromo(id){ if(!confirm("Удалить промокод? История использований сохранится в оплатах.")) return; await act(()=>call("DELETE","promos/"+id),"Удалено"); closeModal(); promos(); }
+
+async function loadBackups(){
+  const list = await call("GET","backups"); if (!$("#bk_list")) return;
+  $("#bk_list").innerHTML = list.length ? `<div class="tbl"><table><tr><th>Дата</th><th>Тип</th><th>Версия</th><th>Данные</th><th></th></tr>${list.map(b=>`<tr><td>${date(b.created)}</td>
+    <td>${b.name.includes("before-restore")?"перед восстановлением":b.name.includes("before-rollback")?"перед откатом":b.name.includes("before-update")?"перед обновлением":b.name.includes("manual")?"вручную":b.name.includes("scheduled")?"по расписанию":"авто"}</td><td>${esc(b.version)}</td>
+    <td class="small"><b>${esc(partsText(b.parts))}</b><br><span class="muted">${b.counts.users??"?"} польз. · ${b.counts.nodes??"?"} серв. · ${b.counts.vpns??"?"} VPN</span></td>
+    <td style="white-space:nowrap"><a class="btn sm" href="${BASE}api/backups/${encodeURIComponent(b.name)}" download>Скачать</a> <button class="btn sm" onclick="restoreServer('${esc(b.name)}')">Откатить</button> <button class="btn sm d" onclick="delBackup('${esc(b.name)}')">✕</button></td></tr>`).join("")}</table></div>`
+    : "Копий пока нет. Они создаются автоматически перед каждым восстановлением, или нажмите «Сохранить копию на сервере».";
+}
+const BK_PARTS = [["users","Пользователи","подписки, лимиты, привязка Telegram"],["servers","Серверы","узлы с ключами подключения"],
+  ["vpns","VPN-подключения","вместе с серверами"],["stats","Статистика трафика","счётчики использованного трафика"],
+  ["payments","Оплаты","история оплат, счета CryptoBot и переводы"],["promos","Промокоды","и их использования"],
+  ["notices","Уведомления","технические работы и новости"],["settings","Настройки","бот, тарифы и оплата, общие настройки"]];
+function bkKind(){ const r = document.querySelector("input[name=bk_kind]:checked"); return r ? r.value : "full"; }
+function bkParts(){
+  if (bkKind() === "full") return "";
+  const p = [...document.querySelectorAll(".bk_part:checked")].map(c => c.value);
+  if (!p.length) { toast("Выберите, что сохранить в копии", true); return null; }
+  return p.join(",");
+}
+function partsText(parts){
+  if (!parts || parts.length >= BK_PARTS.length) return "полная";
+  return parts.map(k => (BK_PARTS.find(x => x[0] === k) || [k, k])[1]).join(", ");
+}
+function downloadBackup(){
+  const p = bkParts(); if (p === null) return;
+  const a = document.createElement("a"); a.href = BASE + "api/backup" + (p ? "?parts=" + encodeURIComponent(p) : ""); a.download = "";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+async function createServerBackup(){
+  const p = bkParts(); if (p === null) return;
+  await act(()=>call("POST","backups/create", p ? {parts: p.split(",")} : {}),"Копия сохранена"); loadBackups();
+}
+async function delBackup(name){ if(!confirm("Удалить эту копию с сервера?")) return; await act(()=>call("DELETE","backups/"+encodeURIComponent(name)),"Удалено"); loadBackups(); }
+function restoreResult(r){
+  const s = r.stats, rows = r.mode === "replace"
+    ? `Пользователей: ${s.users}, серверов: ${s.nodes}, VPN: ${s.vpns}, промокодов: ${s.promos}, оплат: ${s.payments}`
+    : `Серверы: +${s.nodes_new} / обновлено ${s.nodes_upd}<br>VPN: +${s.vpns_new} / обновлено ${s.vpns_upd}<br>Пользователи: +${s.users_new} / обновлено ${s.users_upd}<br>Промокоды: +${s.promos_new} / обновлено ${s.promos_upd}<br>Оплаты: +${s.payments_new}<br>Настроек: ${s.settings}`;
+  modal("Данные восстановлены", `<p>${r.mode==="replace"?"Текущие данные заменены данными из копии.":"Данные из копии объединены с текущими."}</p>
+    <p class="small">Состав копии: <b>${esc(partsText(r.parts))}</b></p><p class="small">${rows}</p>
+    <p class="muted small">Копия от ${date(r.from_created)} (версия ${esc(r.from_version)}). Прежнее состояние сохранено: ${esc(r.auto_backup)} — его можно вернуть кнопкой «Откатить».</p>
+    <p class="muted small">Настройки отправляются на серверы, бот переподключается.</p>`, `<button class="btn p" onclick="closeModal();render()">OK</button>`);
+}
+async function restoreUpload(){
+  const f = $("#bk_file").files[0]; if (!f) return toast("Выберите файл резервной копии", true);
+  const mode = document.querySelector("input[name=bk_mode]:checked").value;
+  if (!confirm(mode==="replace" ? "Заменить ВСЕ текущие данные данными из копии?" : "Объединить данные из копии с текущими?")) return;
+  const b = $("#bk_go"); b.disabled = true;
+  try {
+    const r = await fetch(API + "backup/restore?mode=" + mode, {method: "POST", body: f, credentials: "same-origin", headers: {"X-Lang": LANG}});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "Ошибка " + r.status);
+    restoreResult(d);
+  } catch(e) { toast(e.message, true); }
+  b.disabled = false;
+}
+async function restoreServer(name){
+  if (!confirm("Вернуть данные из этой копии? Текущие данные будут заменены (их копия тоже сохранится).")) return;
+  const r = await act(()=>call("POST","backups/"+encodeURIComponent(name)+"?mode=replace")); restoreResult(r);
+}
+
+async function settings(){
+  const s = await call("GET","settings");
+  main().innerHTML = `<div class="head"><h1>Настройки</h1></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+  <div class="card"><h3>Общие</h3>
+    <label>Название сервиса</label><input type="text" id="s_title" value="${esc(s.panel_title)}">
+    <label>Публичный адрес панели</label><input type="text" id="s_url" value="${esc(s.public_url)}" placeholder="https://vpn.example.com:12345">
+    <div class="hint">Используется в ссылках на страницу пользователя и подписку. Без пути админки.</div>
+    <label>Контакт поддержки</label><input type="text" id="s_sup" value="${esc(s.support)}" placeholder="@support или https://t.me/...">
+    <div class="row2"><div><label>Лимит трафика по умолчанию, ГБ</label><input type="number" id="s_dt" value="${esc(s.default_traffic_limit_gb)}" min="0"></div>
+      <div><label>Лимит устройств по умолчанию</label><input type="number" id="s_dd" value="${esc(s.default_device_limit)}" min="0"></div></div>
+    <div class="hint">Применяются к новым пользователям. 0 — без ограничений.</div>
+    <div style="margin-top:14px"><button class="btn p" id="s_save">Сохранить настройки</button></div>
+  </div>
+  <div class="card"><h3>Учётная запись администратора</h3>
+    <label>Логин</label><input type="text" id="a_user" value="${esc(ME.username)}">
+    <label>Новый пароль (оставьте пустым, чтобы не менять)</label><input type="password" id="a_pw" autocomplete="new-password">
+    <label>Текущий пароль</label><input type="password" id="a_cur" autocomplete="current-password">
+    <div style="margin-top:14px"><button class="btn p" id="a_save">Изменить</button></div>
+    <div class="hint" style="margin-top:12px">Порт панели: ${esc(s.web_port)}. Секретный путь: /${esc(s.web_path)}/. Сменить их, а также домен и сертификат — в меню на сервере: <span class="mono">hidevp</span></div>
+  </div></div>`;
+  $("#s_save").onclick = async () => {
+    await act(()=>call("PUT","settings",{panel_title:$("#s_title").value,public_url:$("#s_url").value,support:$("#s_sup").value,
+      default_traffic_limit_gb:$("#s_dt").value,default_device_limit:$("#s_dd").value}),"Сохранено");
+  };
+  $("#a_save").onclick = async () => {
+    await act(()=>call("POST","admin",{username:$("#a_user").value,password:$("#a_pw").value,current:$("#a_cur").value}),"Учётные данные изменены");
+    ME.username = $("#a_user").value; $("#a_pw").value = $("#a_cur").value = "";
+  };
+}
+
+async function backupPage(){
+  const sc = await call("GET","backup/schedule");
+  const per = [["off","Выключено"],["day","Раз в день"],["week","Раз в неделю"],["month","Раз в месяц"]];
+  main().innerHTML = `<div class="head"><h1>Резервные копии</h1></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+  <div class="card"><h3>Автоматическое создание</h3>
+    <div class="seg" style="grid-template-columns:repeat(2,1fr)">${per.map(([k,t])=>`<label class="${sc.auto===k?"on":""}"><input type="radio" name="bk_auto" value="${k}" ${sc.auto===k?"checked":""}><b>${t}</b></label>`).join("")}</div>
+    <label>Сколько автоматических копий хранить</label><input type="number" id="bk_keep" min="1" max="100" value="${sc.keep}">
+    <div class="hint">Старые автоматические копии удаляются. Копии «вручную» и «перед восстановлением» хранятся отдельно — по 10 последних.</div>
+    <div class="kv" style="margin-top:12px"><span>Последняя</span><span>${sc.last?date(sc.last):"—"}</span>
+      <span>Следующая</span><span>${sc.auto==="off"?"—":(sc.next && sc.next*1000>Date.now()?date(sc.next):"в ближайшие 10 минут")}</span>
+      <span>Хранится</span><span>${sc.count}</span></div>
+    <div style="margin-top:12px"><button class="btn p" id="bk_sc_save">Сохранить</button></div>
+  </div>
+  <div class="card"><h3>Создать копию</h3>
+    <div class="seg" style="grid-template-columns:1fr 1fr">
+      <label class="on"><input type="radio" name="bk_kind" value="full" checked><b>Полная копия</b><span class="small muted">Все данные панели</span></label>
+      <label><input type="radio" name="bk_kind" value="parts"><b>Выборочно</b><span class="small muted">Только отмеченные данные</span></label>
+    </div>
+    <div id="bk_parts" class="bkparts" style="display:none">${BK_PARTS.map(([k,t,h])=>`<label class="check"><input type="checkbox" class="bk_part" value="${k}" checked> <span>${t}<span class="muted small"> — ${h}</span></span></label>`).join("")}</div>
+    <div class="muted small" style="margin-top:10px">В полной копии: настройки, токен бота, тарифы, пользователи, серверы (узлы) с ключами подключения, VPN-подключения, промокоды, оплаты и уведомления. Храните файл в надёжном месте — по нему можно управлять вашими серверами.</div>
+    <div class="actions" style="margin-top:12px"><button class="btn p" onclick="downloadBackup()">Скачать бэкап</button><button class="btn" onclick="createServerBackup()">Сохранить копию на сервере</button></div>
+    <hr class="sep">
+    <h3>Загрузить бэкап</h3>
+    <input type="file" id="bk_file" accept=".zip,.db" style="margin:4px 0 10px">
+    <div class="seg" style="grid-template-columns:1fr 1fr">
+      <label class="on"><input type="radio" name="bk_mode" value="merge" checked><b>Обновить данные</b><span class="small muted">Объединить с текущими данными: совпадающие записи обновятся, новые добавятся, остальное останется</span></label>
+      <label><input type="radio" name="bk_mode" value="replace"><b>Заменить</b><span class="small muted">Удалить текущие данные и загрузить данные из копии. Для выборочной копии заменяются только данные, которые в ней есть</span></label>
+    </div>
+    <div class="hint">Логин администратора, адрес, порт и секретный путь админки не меняются. Перед восстановлением текущая база автоматически сохраняется.</div>
+    <div style="margin-top:12px"><button class="btn p" id="bk_go">Восстановить</button></div>
+  </div></div>
+  <div class="card" style="margin-top:18px"><h3>Копии на сервере</h3><div id="bk_list" class="muted small">…</div></div>`;
+  loadBackups();
+  const segOn = name => document.querySelectorAll(`input[name=${name}]`).forEach(r => r.onchange = () => document.querySelectorAll(`input[name=${name}]`).forEach(x => x.parentNode.classList.toggle("on", x.checked)));
+  segOn("bk_mode"); segOn("bk_auto"); segOn("bk_kind");
+  document.querySelectorAll("input[name=bk_kind]").forEach(r => r.addEventListener("change", () => { $("#bk_parts").style.display = bkKind() === "parts" ? "" : "none"; }));
+  document.querySelectorAll(".bk_part").forEach(c => c.onchange = () => {
+    if (c.value === "vpns" && c.checked) $(".bk_part[value=servers]").checked = true;
+    if (c.value === "servers" && !c.checked) $(".bk_part[value=vpns]").checked = false;
+  });
+  $("#bk_go").onclick = restoreUpload;
+  $("#bk_sc_save").onclick = async () => {
+    await act(()=>call("PUT","backup/schedule",{auto:document.querySelector("input[name=bk_auto]:checked").value, keep:$("#bk_keep").value}),"Сохранено");
+    backupPage();
+  };
+}
+
+let BUI = null, BPREV = {view:"menu", lang:"ru", phone:false};
+async function botPage(){
+  const [s, ui] = await Promise.all([call("GET","settings"), call("GET","bot/ui")]);
+  BUI = ui; BUI.cfg = JSON.parse(JSON.stringify(ui.config));
+  BPREV.lang = LANG;
+  main().innerHTML = `<div class="head"><h1>Telegram-бот</h1><div>${s.bot.running?`${badge("online")} <a href="https://t.me/${esc(s.bot.username)}" target="_blank" rel="noopener">@${esc(s.bot.username)}</a>`:`${badge("offline")} <span class="muted small">${esc(s.bot.error||"")}</span>`}</div></div>
+  <div class="grid" style="grid-template-columns:minmax(0,680px)">
+  <div class="card"><h3>Подключение</h3>
+    <div class="muted small">Связь: ${esc(s.bot.route||"")}</div>
+    <label>Токен бота (от @BotFather)</label><input type="password" id="s_tok" value="${esc(s.bot_token)}" placeholder="123456:ABC...">
+    <label>Подключение к Telegram</label>
+    <select id="s_route">
+      <option value="direct" ${s.tg_route==="direct"?"selected":""}>Напрямую</option>
+      <option value="node" ${s.tg_route==="node"?"selected":""}>Через подключённый сервер (для России)</option>
+      <option value="proxy" ${s.tg_route==="proxy"?"selected":""}>Через прокси (socks5 / http)</option>
+    </select>
+    <div id="s_route_node" style="display:none"><label>Сервер, через который идти в Telegram</label>
+      ${s.nodes.length ? `<select id="s_node">${s.nodes.map(n=>`<option value="${n.id}" ${String(n.id)===String(s.tg_node_id)?"selected":""}>${flagTxt(n.country_code)}${esc(n.name)}</option>`).join("")}</select>
+      <div class="hint">Выберите зарубежный сервер.</div>`
+      : `<div class="hint">Сначала подключите зарубежный сервер во вкладке «Серверы».</div>`}</div>
+    <div id="s_route_proxy" style="display:none"><label>Адрес прокси</label>
+      <input type="text" id="s_proxy" value="${esc(s.tg_proxy)}" placeholder="socks5://user:pass@1.2.3.4:1080">
+      <div class="hint">Поддерживаются socks5:// (с логином/паролем или без) и http://.</div></div>
+    <label>Telegram ID администраторов для уведомлений</label><input type="text" id="s_adm" value="${esc(s.admin_tg_ids)}" placeholder="12345678, 87654321">
+    <div class="hint">Узнать свой ID: @userinfobot. Сюда приходят уведомления о новых пользователях, оплатах, переводах и обновлениях.</div>
+    <div id="adm_box" class="admbox"></div>
+    <div class="actions" style="margin-top:14px"><button class="btn p" id="b_save">Сохранить</button><button class="btn" id="b_rb">Перезапустить бота</button></div>
+  </div>
+</div>
+
+  <div class="grid" style="grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);margin-top:18px;align-items:start" id="bui_grid">
+    <div>
+      <div class="card"><h3>Кнопки главного меню</h3>
+        <div class="muted small" style="margin-bottom:10px">Порядок — стрелками. «В строке с предыдущей» ставит кнопку рядом с кнопкой выше. Пустая подпись — стандартная.</div>
+        <div class="bedit" id="bui_list"></div>
+        <div class="actions" style="margin-top:12px"><button class="btn" onclick="buiAdd('url')">+ Кнопка-ссылка</button><button class="btn" onclick="buiAdd('text')">+ Кнопка с сообщением</button></div>
+        <div class="row2" style="margin-top:6px"><div><label>Кнопок в одной строке, не больше</label><select id="bui_maxrow">${[1,2,3,4].map(n=>`<option ${BUI.cfg.max_row==n?"selected":""}>${n}</option>`).join("")}</select></div>
+          <div><label>&nbsp;</label><label style="display:flex;gap:8px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="bui_phone" ${BUI.cfg.ask_phone?"checked":""}> Просить номер телефона после регистрации</label></div></div>
+        <label>Переписка в боте</label>
+        <div class="seg" style="grid-template-columns:1fr 1fr">
+          <label class="${BUI.cfg.clean_chat?"":"on"}"><input type="radio" name="bui_cc" value="0" ${BUI.cfg.clean_chat?"":"checked"}><b>Сохранять историю</b><span class="small muted">Каждый ответ бота — новое сообщение, переписка остаётся</span></label>
+          <label class="${BUI.cfg.clean_chat?"on":""}"><input type="radio" name="bui_cc" value="1" ${BUI.cfg.clean_chat?"checked":""}><b>Чистый чат</b><span class="small muted">Меню обновляется на месте, сообщения пользователя и старые сообщения бота удаляются</span></label>
+        </div>
+        <div class="hint">Уведомления, оплаты и сообщения администраторам не удаляются. Telegram разрешает удалять сообщения не старше 48 часов.</div>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>Тексты сообщений</h3>
+        <div class="segbtn" id="bui_tl"><button data-l="ru">RU</button><button data-l="en">EN</button></div>
+        <div id="bui_texts"></div>
+        <div class="hint" style="margin-top:10px">Разметка Telegram: &lt;b&gt;жирный&lt;/b&gt;, &lt;i&gt;курсив&lt;/i&gt;, &lt;u&gt;подчёркнутый&lt;/u&gt;, &lt;code&gt;код&lt;/code&gt;, &lt;a href="https://…"&gt;ссылка&lt;/a&gt;. Подстановки: {title} — название сервиса, {name} — имя пользователя, {status} — статус подписки, {expires} — дата окончания, {page} — ссылка на личную страницу, {support} — контакт поддержки. Строка, в которой подстановка пустая, не показывается.</div>
+      </div>
+      <div class="actions" style="margin-top:14px"><button class="btn p" id="bui_save">Сохранить меню и тексты</button><button class="btn" id="bui_reset">Вернуть стандартные</button></div>
+    </div>
+    <div class="tgwrap"><div class="card"><h3>Предпросмотр</h3>
+      <div class="actions" style="margin-bottom:10px">
+        <div class="segbtn" id="pv_view"><button data-v="welcome">Приветствие</button><button data-v="menu">Меню</button><button data-v="help">Как подключиться</button></div>
+        <div class="segbtn" id="pv_lang"><button data-l="ru">RU</button><button data-l="en">EN</button></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin:0 0 10px"><input type="checkbox" id="pv_phone"> Номер уже привязан</label>
+      <div class="tgphone notr"><div class="tgmsg" id="pv_msg"></div><div class="tgkb" id="pv_kb"></div></div>
+      <div class="hint">Так увидит бота пользователь. Сохраните, чтобы изменения появились в Telegram.</div>
+    </div></div>
+  </div>`;
+  if (window.innerWidth < 900) $("#bui_grid").style.gridTemplateColumns = "1fr";
+  const routeUi = () => { const v = $("#s_route").value; $("#s_route_node").style.display = v==="node"?"":"none"; $("#s_route_proxy").style.display = v==="proxy"?"":"none"; };
+  $("#s_route").onchange = routeUi; routeUi();
+  const saveConn = async restart => {
+    await act(()=>call("PUT","settings",{bot_token:$("#s_tok").value,admin_tg_ids:$("#s_adm").value,restart_bot:restart,
+      tg_route:$("#s_route").value,tg_node_id:$("#s_node")?$("#s_node").value:"",tg_proxy:$("#s_proxy").value}),"Сохранено");
+    botPage();
+  };
+  admBox();
+  $("#b_save").onclick = () => saveConn(false);
+  $("#b_rb").onclick = () => saveConn(true);
+  $("#bui_maxrow").onchange = e => { BUI.cfg.max_row = +e.target.value; buiPreview(); };
+  $("#bui_phone").onchange = e => { BUI.cfg.ask_phone = e.target.checked; };
+  document.querySelectorAll("input[name=bui_cc]").forEach(r => r.onchange = () => { BUI.cfg.clean_chat = r.value === "1";
+    document.querySelectorAll("input[name=bui_cc]").forEach(x => x.parentNode.classList.toggle("on", x.checked)); });
+  $("#pv_phone").onchange = e => { BPREV.phone = e.target.checked; buiPreview(); };
+  segbtn("#pv_view", "v", BPREV.view, v => { BPREV.view = v; buiPreview(); });
+  segbtn("#pv_lang", "l", BPREV.lang, v => { BPREV.lang = v; buiPreview(); });
+  segbtn("#bui_tl", "l", BPREV.lang, v => { BPREV.lang = v; buiTexts(); segbtn("#pv_lang","l",v,null,true); buiPreview(); });
+  $("#bui_save").onclick = async () => {
+    const r = await act(()=>call("PUT","bot/ui",{buttons:BUI.cfg.buttons, texts:BUI.cfg.texts, max_row:BUI.cfg.max_row, ask_phone:BUI.cfg.ask_phone, clean_chat:BUI.cfg.clean_chat}),"Сохранено");
+    BUI.config = r.config; BUI.cfg = JSON.parse(JSON.stringify(r.config)); buiList(); buiTexts(); buiPreview();
+  };
+  $("#bui_reset").onclick = async () => {
+    if (!confirm("Вернуть стандартные кнопки и тексты? Свои кнопки будут удалены.")) return;
+    const r = await act(()=>call("PUT","bot/ui",{}),"Сохранено");
+    BUI.cfg = JSON.parse(JSON.stringify(r.config)); botPage();
+  };
+  buiList(); buiTexts(); buiPreview();
+}
+const PERIODS = [["7","7 дней"],["30","30 дней"],["90","90 дней"],["365","Год"],["all","Всё время"],["custom","Свой период"]];
+let SF = (() => { try { return JSON.parse(localStorage.getItem("hv_stats") || "null") || {}; } catch(e) { return {}; } })();
+SF = Object.assign({period:"30", from:"", to:"", user:"", user_id:"", method:"", currency:"", months:"", chartCur:""}, SF, {user_id:""});
+function statsQuery(){
+  const now = Date.now()/1000, day = 86400; let from = 0, to = 0;
+  if (SF.period === "custom") { from = SF.from ? new Date(SF.from+"T00:00").getTime()/1000 : 0; to = SF.to ? new Date(SF.to+"T00:00").getTime()/1000 + day : 0; }
+  else if (SF.period !== "all") { const d = new Date(); d.setHours(0,0,0,0); from = d.getTime()/1000 - (+SF.period - 1)*day; }
+  const p = new URLSearchParams({from, to, tz: new Date().getTimezoneOffset(), user: SF.user, user_id: SF.user_id, method: SF.method, currency: SF.currency, months: SF.months});
+  return p.toString();
+}
+function barChart(labels, values, opts={}){
+  const W = opts.w || 760, H = opts.h || 200, pl = 44, pb = 22, pt = 10, n = values.length || 1, max = Math.max(1, ...values);
+  const step = (W - pl - 8) / n, bw = Math.max(1, step * 0.72);
+  const nice = v => { const p = Math.pow(10, Math.floor(Math.log10(v))); const m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; };
+  const top = nice(max), fmt = opts.fmt || (v => v);
+  const y = v => pt + (H - pt - pb) * (1 - v / top);
+  const ticks = [0, top/2, top].map(v => `<line x1="${pl}" x2="${W-4}" y1="${y(v)}" y2="${y(v)}" class="gl"/><text x="${pl-6}" y="${y(v)+4}" class="ax" text-anchor="end">${esc(String(fmt(v)))}</text>`).join("");
+  const every = Math.ceil(n / (W < 500 ? 5 : 8));
+  const bars = values.map((v,i) => `<rect x="${pl + i*step + (step-bw)/2}" y="${y(v)}" width="${bw}" height="${Math.max(0, y(0)-y(v))}" rx="2" class="bar"><title>${esc(labels[i])}: ${esc(String(fmt(v)))}</title></rect>`).join("");
+  const xl = labels.map((l,i) => i % every === 0 ? `<text x="${pl + i*step + step/2}" y="${H-6}" class="ax" text-anchor="middle">${esc(shortLabel(l))}</text>` : "").join("");
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">${ticks}${bars}${xl}</svg>`;
+}
+function shortLabel(l){ const p = l.split("-"); return p.length === 3 ? `${p[2]}.${p[1]}` : `${p[1]}.${p[0].slice(2)}`; }
+async function statsPage(){
+  const d = await call("GET", "stats?" + statsQuery());
+  try { localStorage.setItem("hv_stats", JSON.stringify(SF)); } catch(e) {}
+  const curs = d.totals.map(t => t.currency).filter(c => d.series.revenue[c]);
+  if (!curs.includes(SF.chartCur)) SF.chartCur = curs[0] || "";
+  const st = d.users.status, M = PAYM;
+  const moneyFmt = c => v => c === "XTR" ? Math.round(v) : (v/100 >= 1000 ? Math.round(v/100/1000)+"k" : Math.round(v/100));
+  main().innerHTML = `<div class="head"><h1>Статистика</h1><a class="btn" href="${BASE}api/stats/payments.csv?${statsQuery()}" download>Скачать оплаты (CSV)</a></div>
+  <div class="card sfil">
+    <div class="segbtn" id="sf_per">${PERIODS.map(([k,t])=>`<button data-p="${k}" class="${SF.period===k?"on":""}">${t}</button>`).join("")}</div>
+    ${SF.period==="custom"?`<div class="sfd"><input type="date" id="sf_from" value="${esc(SF.from)}"> — <input type="date" id="sf_to" value="${esc(SF.to)}"></div>`:""}
+    <div class="sfr">
+      <input type="search" id="sf_user" placeholder="Пользователь: имя, @username, Telegram ID, телефон" value="${esc(SF.user)}">
+      <select id="sf_method"><option value="">Все способы</option>${["stars","card","crypto","manual","promo"].map(m=>`<option value="${m}" ${SF.method===m?"selected":""}>${esc(M[m])}</option>`).join("")}</select>
+      <select id="sf_cur"><option value="">Все валюты</option>${d.currencies.map(c=>`<option value="${c}" ${SF.currency===c?"selected":""}>${c==="XTR"?"⭐ звёзды":c+" "+(CUR[c]||"")}</option>`).join("")}</select>
+      <select id="sf_months"><option value="">Все тарифы</option>${[1,2,3,6,9,12,24].map(m=>`<option value="${m}" ${String(SF.months)===String(m)?"selected":""}>${MWORD[m]}</option>`).join("")}</select>
+      <button class="btn" id="sf_reset">Сбросить</button>
+    </div>
+  </div>
+  <div class="grid tiles" style="margin-top:14px">
+    <div class="card tile"><div class="l">Выручка</div><div class="v">${d.totals.length ? d.totals.map(t=>esc(t.text)).join(" · ") : "0"}</div>
+      <div class="muted small">${d.totals.map(t=>`${esc(t.currency==="XTR"?"⭐":t.currency)}: ${t.count} опл., средний чек ${esc(t.avg)}`).join("<br>")||"нет оплат"}</div></div>
+    <div class="card tile"><div class="l">Оплаты</div><div class="v">${d.paid_count}</div><div class="muted small">платили: ${d.payers} польз.${d.payments_count>d.paid_count?` · по промокоду бесплатно: ${d.payments_count-d.paid_count}`:""}</div></div>
+    <div class="card tile"><div class="l">Новые пользователи</div><div class="v">${d.users.new}</div><div class="muted small">всего: ${d.users.total}</div></div>
+    <div class="card tile"><div class="l">Подписки сейчас</div><div class="v">${st.active||0}</div><div class="muted small">истекли: ${st.expired||0} · без подписки: ${st.new||0}${st.disabled?` · отключены: ${st.disabled}`:""}</div></div>
+  </div>
+  <div class="card" style="margin-top:14px"><div class="head" style="margin:0 0 8px"><h3 style="margin:0">Выручка по ${d.granularity==="month"?"месяцам":"дням"}</h3>
+    ${curs.length>1?`<div class="segbtn" id="sf_cc">${curs.map(c=>`<button data-c="${c}" class="${SF.chartCur===c?"on":""}">${c==="XTR"?"⭐":esc(c)}</button>`).join("")}</div>`:""}</div>
+    ${curs.length ? barChart(d.labels, d.series.revenue[SF.chartCur], {fmt: moneyFmt(SF.chartCur), w: window.innerWidth < 700 ? 420 : 760}) : `<div class="muted small">Нет оплат за выбранный период.</div>`}
+    ${curs.length?`<div class="muted small">Сумма за период: <b>${esc((d.totals.find(t=>t.currency===SF.chartCur)||{}).text||"")}</b></div>`:""}</div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));margin-top:14px">
+    <div class="card"><h3>Число оплат</h3>${barChart(d.labels, d.series.payments, {w:420, h:190})}</div>
+    <div class="card"><h3>Новые пользователи</h3>${SF.user||SF.method||SF.currency||SF.months?`<div class="muted small">График новых пользователей строится без фильтров по пользователю и оплатам.</div>`:barChart(d.labels, d.series.new_users, {w:420, h:190})}</div>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));margin-top:14px;align-items:start">
+    <div class="card"><h3>По способам оплаты</h3>${d.by_method.length?`<div class="tbl"><table><tr><th>Способ</th><th>Оплат</th><th>Сумма</th></tr>${d.by_method.map(b=>`<tr><td>${esc(M[b.method]||b.method)}</td><td>${b.count}</td><td>${money(b.sum,b.currency)}</td></tr>`).join("")}</table></div>`:`<div class="muted small">—</div>`}</div>
+    <div class="card"><h3>По тарифам</h3>${d.by_plan.length?`<div class="tbl"><table><tr><th>Тариф</th><th>Оплат</th><th>Сумма</th></tr>${d.by_plan.map(b=>`<tr><td>${esc(MWORD[b.months]||b.months+" мес.")}</td><td>${b.count}</td><td>${esc(b.text)}</td></tr>`).join("")}</table></div>`:`<div class="muted small">—</div>`}</div>
+    <div class="card"><h3>Промокоды</h3>${d.by_promo.length?`<div class="tbl"><table><tr><th>Код</th><th>Использований</th></tr>${d.by_promo.map(b=>`<tr><td class="mono">${esc(b.code)}</td><td>${b.c}</td></tr>`).join("")}</table></div>`:`<div class="muted small">—</div>`}</div>
+    <div class="card"><h3>Лучшие покупатели</h3>${d.top_users.length?`<div class="tbl"><table><tr><th>Пользователь</th><th>Оплат</th><th>Сумма</th></tr>${d.top_users.map(t=>`<tr class="clk" onclick="statsUser(${t.user_id}, '${esc(String(t.name||t.tg_username||t.user_id)).replace(/'/g,"")}')"><td>${esc(t.name||"")} ${t.tg_username?`<span class="muted">@${esc(t.tg_username)}</span>`:""}</td><td>${t.count}</td><td>${esc(t.text)}</td></tr>`).join("")}</table></div>`:`<div class="muted small">—</div>`}</div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Оплаты${d.payments_count>300?` <span class="muted small">(последние 300 из ${d.payments_count}; все — в CSV)</span>`:""}</h3>
+    ${d.payments.length?`<div class="tbl"><table><tr><th>Дата</th><th>Пользователь</th><th>Тариф</th><th>Способ</th><th>Сумма</th></tr>${d.payments.map(p=>`<tr><td>${date(p.created)}</td><td class="clk" onclick="statsUser(${p.user_id}, '${esc(String(p.name||p.tg_username||p.user_id)).replace(/'/g,"")}')">${esc(p.name||"")} ${p.tg_username?`<span class="muted">@${esc(p.tg_username)}</span>`:""}</td><td>${p.months} мес.</td><td>${esc(M[p.method]||p.method)}</td><td>${esc(p.text)}</td></tr>`).join("")}</table></div>`:`<div class="muted small">Нет оплат по выбранным фильтрам.</div>`}</div>`;
+  const reload = () => statsPage();
+  document.querySelectorAll("#sf_per button").forEach(b => b.onclick = () => { SF.period = b.dataset.p; reload(); });
+  document.querySelectorAll("#sf_cc button").forEach(b => b.onclick = () => { SF.chartCur = b.dataset.c; reload(); });
+  const f = $("#sf_from"), t = $("#sf_to"); if (f) f.onchange = () => { SF.from = f.value; reload(); }; if (t) t.onchange = () => { SF.to = t.value; reload(); };
+  let tm; $("#sf_user").oninput = e => { clearTimeout(tm); tm = setTimeout(() => { SF.user = e.target.value; SF.user_id = ""; reload(); }, 500); };
+  $("#sf_method").onchange = e => { SF.method = e.target.value; reload(); };
+  $("#sf_cur").onchange = e => { SF.currency = e.target.value; reload(); };
+  $("#sf_months").onchange = e => { SF.months = e.target.value; reload(); };
+  $("#sf_reset").onclick = () => { SF = {period:"30", from:"", to:"", user:"", user_id:"", method:"", currency:"", months:"", chartCur:""}; reload(); };
+}
+function statsUser(id, name){ SF.user_id = String(id); SF.user = name; statsPage().then(() => { const u = $("#sf_user"); if (u) u.value = name; }); }
+const NKIND = {info:["ℹ️","Информация"], maintenance:["🛠","Технические работы"], warning:["⚠️","Важно"]};
+const NSTATE = {active:["active","Показывается"], scheduled:["warn","Запланировано"], ended:["neu","Завершено"], off:["neu","Выключено"]};
+let NOTI = null;
+function dtLocal(ts){ if (!ts) return ""; const d = new Date(ts*1000); const p = n => String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+function fromLocal(v){ return v ? Math.floor(new Date(v).getTime()/1000) : 0; }
+async function noticesPage(){
+  NOTI = await call("GET","notices");
+  const L = NOTI.items;
+  main().innerHTML = `<div class="head"><h1>Уведомления</h1><button class="btn p" onclick="editNotice(0)">+ Новое уведомление</button></div>
+  <div class="muted small" style="margin:-6px 0 14px">Показываются на личной странице пользователя, над меню бота и в приложении (Happ, INCY). При появлении рассылаются в Telegram.${NOTI.bot.running?"":" <b>Бот не запущен — рассылка не работает.</b>"}</div>
+  ${L.length ? L.map(n => { const [cls, st] = NSTATE[n.state]; return `<div class="card notice ${n.state}">
+    <div class="nh"><span class="ni">${NKIND[n.kind][0]}</span><b>${esc(NKIND[n.kind][1])}</b><span class="badge s-${cls==="active"?"active":cls==="warn"?"expired":"new"}">${st}</span></div>
+    <div class="nt notr">${esc(n.text)}</div>${n.text_en?`<div class="nt notr muted small">EN: ${esc(n.text_en)}</div>`:""}
+    <div class="muted small" style="margin-top:8px">${date(n.starts_at)} — ${n.ends_at?date(n.ends_at):"без срока"} · ${n.audience==="active"?"только с активной подпиской":n.audience==="expired"?"только с истёкшей подпиской":"все пользователи"} ·
+      ${n.send_tg ? (n.sent_at ? `Telegram: отправлено ${n.sent_count}` : "Telegram: будет отправлено при появлении") : "без рассылки в Telegram"}</div>
+    <div class="actions" style="margin-top:10px"><button class="btn sm" onclick="editNotice(${n.id})">Изменить</button>
+      ${n.state!=="ended"&&n.state!=="off"?`<button class="btn sm" onclick="sendNotice(${n.id})">Отправить в Telegram сейчас</button>`:""}
+      ${n.state==="active"?`<button class="btn sm" onclick="endNotice(${n.id})">Завершить</button>`:""}
+      <button class="btn sm d" onclick="delNotice(${n.id})">Удалить</button></div></div>`; }).join("")
+  : `<div class="card empty">Уведомлений пока нет. Например: «Технические работы 10.11 с 02:00 до 04:00 — возможны перебои».</div>`}`;
+}
+function editNotice(id){
+  const n = id ? NOTI.items.find(x=>x.id===id) : {text:"", text_en:"", kind:"maintenance", starts_at:0, ends_at:0, send_tg:1, audience:"all", enabled:1};
+  modal(id ? "Уведомление" : "Новое уведомление", `
+    <label>Тип</label><div class="seg" style="grid-template-columns:repeat(3,1fr)">${Object.entries(NKIND).map(([k,[i,t]])=>`<label class="${n.kind===k?"on":""}"><input type="radio" name="nk" value="${k}" ${n.kind===k?"checked":""}><b>${i} ${t}</b></label>`).join("")}</div>
+    <label>Текст</label><textarea id="nt" class="notr" rows="4" maxlength="1500" placeholder="Технические работы 10.11 с 02:00 до 04:00 (МСК) — возможны кратковременные перебои.">${esc(n.text)}</textarea>
+    <label>Текст на английском (необязательно)</label><textarea id="nte" class="notr" rows="2" maxlength="1500" placeholder="Для пользователей с английским языком">${esc(n.text_en||"")}</textarea>
+    <div class="row2"><div><label>Показывать с</label><input type="datetime-local" id="ns" value="${dtLocal(n.starts_at)}"><div class="hint">Пусто — сразу</div></div>
+      <div><label>Показывать до</label><input type="datetime-local" id="ne" value="${dtLocal(n.ends_at)}"><div class="hint">Пусто — без срока</div></div></div>
+    <label>Кому</label><select id="na"><option value="all" ${n.audience==="all"?"selected":""}>Всем пользователям</option><option value="active" ${n.audience==="active"?"selected":""}>Только с активной подпиской</option><option value="expired" ${n.audience==="expired"?"selected":""}>Только с истёкшей подпиской</option></select>
+    <div class="hint">«С истёкшей подпиской» — для напоминаний о продлении и промокодов вернувшимся.</div>
+    <label class="check"><input type="checkbox" id="ntg" ${n.send_tg?"checked":""}> Отправить в Telegram при появлении${id&&n.sent_at?" (уже отправлено — повторно не уйдёт, используйте «Отправить сейчас»)":""}</label>
+    <label class="check"><input type="checkbox" id="non" ${n.enabled?"checked":""}> Включено</label>
+    <div class="hint">Время — по часам вашего устройства. В приложениях Happ/INCY показываются первые 200 символов.</div>`,
+    `<button class="btn" onclick="closeModal()">Отмена</button><button class="btn p" id="nsave">Сохранить</button>`);
+  document.querySelectorAll("input[name=nk]").forEach(r => r.onchange = () => document.querySelectorAll("input[name=nk]").forEach(x => x.parentNode.classList.toggle("on", x.checked)));
+  $("#nsave").onclick = async () => {
+    const body = {kind: document.querySelector("input[name=nk]:checked").value, text: $("#nt").value, text_en: $("#nte").value,
+      starts_at: fromLocal($("#ns").value), ends_at: fromLocal($("#ne").value), audience: $("#na").value, send_tg: $("#ntg").checked, enabled: $("#non").checked};
+    await act(() => id ? call("PUT", "notices/"+id, body) : call("POST", "notices", body), "Сохранено");
+    closeModal(); noticesPage();
+  };
+}
+async function sendNotice(id){
+  if (!confirm(`Разослать уведомление в Telegram? Получателей: до ${NOTI.users}.`)) return;
+  await act(() => call("POST", `notices/${id}/send`), "Рассылка запущена"); setTimeout(noticesPage, 3000);
+}
+async function endNotice(id){
+  const n = NOTI.items.find(x=>x.id===id);
+  await act(() => call("PUT", "notices/"+id, {...n, ends_at: Math.floor(Date.now()/1000), starts_at: Math.min(n.starts_at, Math.floor(Date.now()/1000)-1)}), "Завершено"); noticesPage();
+}
+async function delNotice(id){
+  const n = NOTI.items.find(x=>x.id===id);
+  if (!confirm(n && n.sent_count ? "Удалить уведомление? Оно исчезнет с сайта и будет удалено из чатов Telegram у всех получателей." : "Удалить уведомление?")) return;
+  const r = await act(() => call("DELETE", "notices/"+id), "Удалено");
+  if (r && r.tg_deleting) toast(`Удаляю из Telegram: ${r.tg_deleting} сообщ.`);
+  noticesPage();
+}
+let PAY = null;
+const MWORD = {1:"1 месяц",2:"2 месяца",3:"3 месяца",6:"6 месяцев",9:"9 месяцев",12:"12 месяцев",24:"24 месяца"};
+async function payPage(){
+  PAY = await call("GET","payments");
+  const c = PAY.config, C = PAY.currencies;
+  const added = m => m === "stars" || c[m].on || PAY.methods[m].ready;
+  main().innerHTML = `<div class="head"><h1>Тарифы и оплата</h1></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));align-items:start">
+  <div class="card"><h3>Тарифы и цены</h3>
+    <label>Валюта цен (карта, криптовалюта, перевод)</label>
+    <select id="py_cur">${Object.entries(C).map(([k,v])=>`<option value="${k}" ${k===c.currency?"selected":""}>${k} ${v}</option>`).join("")}</select>
+    <div class="tbl" style="margin-top:12px"><table class="ptbl"><tr><th>Тариф</th><th>Звёзды ⭐</th><th>Цена, <span id="py_sym">${C[c.currency]}</span></th></tr>
+      ${PAY.plan_options.map(m=>`<tr class="${c.plans.includes(m)?"":"off"}"><td><label class="check" style="margin:0"><input type="checkbox" class="py_plan" value="${m}" ${c.plans.includes(m)?"checked":""}> ${MWORD[m]}</label></td>
+        <td><input type="number" min="0" step="1" id="py_st_${m}" value="${PAY.stars_prices[m]||0}"></td>
+        <td><input type="number" min="0" step="0.01" id="py_fi_${m}" value="${c.fiat_prices[m]||0}"></td></tr>`).join("")}
+    </table></div>
+    <div class="hint">Отметьте тарифы, которые продаются. 0 — тариф не продаётся этим способом. Цена в валюте общая для карты, криптовалюты и перевода. Промокоды действуют на все способы.</div>
+    <div id="py_pending"></div>
+  </div>
+  <div class="card"><div class="head" style="margin:0 0 6px"><h3 style="margin:0">Способы оплаты</h3>
+      <div class="addm"><button class="btn sm p" id="py_add">+ Подключить</button><div class="menu" id="py_addmenu"></div></div></div>
+      <div id="py_methods"></div>
+  </div></div>
+  <div style="margin-top:14px"><button class="btn p" id="py_save">Сохранить тарифы и оплату</button></div>`;
+  const methods = () => {
+    $("#py_methods").innerHTML = ["stars","card","crypto","manual"].filter(added).map(m => payMethodHtml(m)).join("");
+    const rest = ["card","crypto","manual"].filter(m => !added(m));
+    $("#py_add").style.display = rest.length ? "" : "none";
+    $("#py_addmenu").innerHTML = rest.map(m=>`<button onclick="payAdd('${m}')"><b>${esc(PAY.methods[m].ru)}</b><span class="muted small">${esc(PAY_DESC[m])}</span></button>`).join("");
+    document.querySelectorAll(".pm_on").forEach(x => x.onchange = () => x.closest(".pmeth").classList.toggle("off", !x.checked));
+    const chk = $("#pm_crypto_chk"); if (chk) chk.onclick = async () => { const r = await act(()=>call("POST","payments/check-crypto",{token:$("#pm_crypto_tok").value, testnet:$("#pm_crypto_tn").checked})); toast(`CryptoBot: ${r.name||"OK"}`); };
+  };
+  window.payAdd = m => { PAY.config[m].on = true; PAY.methods[m].ready = true; $("#py_addmenu").parentNode.classList.remove("open"); methods();
+    const el = $("#pm_"+m+"_on"); if (el) el.closest(".pmeth").scrollIntoView({behavior:"smooth", block:"center"}); };
+  methods();
+  $("#py_add").onclick = e => { e.stopPropagation(); $("#py_addmenu").parentNode.classList.toggle("open"); };
+  document.addEventListener("click", () => { const m = $("#py_addmenu"); if (m) m.parentNode.classList.remove("open"); });
+  $("#py_cur").onchange = e => { $("#py_sym").textContent = C[e.target.value]; };
+  document.querySelectorAll(".py_plan").forEach(x => x.onchange = () => x.closest("tr").classList.toggle("off", !x.checked));
+  payPending();
+  $("#py_save").onclick = async () => {
+    const plans = [...document.querySelectorAll(".py_plan:checked")].map(x=>+x.value);
+    const sp = {}, fp = {};
+    PAY.plan_options.forEach(m => { sp[m] = +$("#py_st_"+m).value; fp[m] = $("#py_fi_"+m).value; });
+    const v = id => $(id);
+    const body = {plans, currency: $("#py_cur").value, fiat_prices: fp, stars: {on: v("#pm_stars_on") ? v("#pm_stars_on").checked : true}};
+    if (v("#pm_card_on")) body.card = {on: $("#pm_card_on").checked, token: $("#pm_card_tok").value, receipt: $("#pm_card_rc").checked};
+    if (v("#pm_crypto_on")) body.crypto = {on: $("#pm_crypto_on").checked, token: $("#pm_crypto_tok").value, testnet: $("#pm_crypto_tn").checked,
+      assets: [...document.querySelectorAll(".pm_as:checked")].map(x=>x.value)};
+    if (v("#pm_manual_on")) body.manual = {on: $("#pm_manual_on").checked, details: $("#pm_manual_det").value, unique_code: $("#pm_manual_code").checked};
+    await act(async () => { await call("PUT","settings",{prices: sp}); return call("PUT","payments", body); }, "Сохранено");
+    payPage();
+  };
+}
+const PAY_DESC = {card:"ЮKassa, Сбер, Т-Банк и др. через @BotFather → Payments", crypto:"USDT, TON, BTC… через @CryptoBot", manual:"Реквизиты карты или СБП, вы подтверждаете оплату вручную"};
+function payMethodHtml(m){
+  const c = PAY.config[m], on = c.on, en = PAY.enabled.includes(m);
+  const head = `<div class="pmh"><label class="check" style="margin:0"><input type="checkbox" class="pm_on" id="pm_${m}_on" ${on?"checked":""}> <b>${esc(PAY.methods[m].ru)}</b></label>
+    <span class="badge ${en?"s-active":"s-new"}">${en?"работает":on?"не настроен":"выключен"}</span></div>`;
+  let body = "";
+  if (m === "stars") body = `<div class="hint" style="margin-top:4px">Оплата прямо в Telegram, настраивать ничего не нужно. Цены — в колонке «Звёзды». 1 звезда ≈ $0.013 для покупателя, вывод через Fragment.</div>`;
+  if (m === "card") body = `<label>Токен провайдера</label><input type="password" id="pm_card_tok" value="${esc(c.token)}" placeholder="381764678:TEST:12345 или 390540012:LIVE:…">
+    <div class="hint">@BotFather → ваш бот → Payments → выберите провайдера → скопируйте токен. Токен с TEST — для проверки без денег. Минимальная сумма — около $1.</div>
+    <label class="check"><input type="checkbox" id="pm_card_rc" ${c.receipt?"checked":""}> Чек по 54-ФЗ (ЮKassa)</label>`;
+  if (m === "crypto") body = `<label>Токен Crypto Pay</label><div style="display:flex;gap:8px"><input type="password" id="pm_crypto_tok" value="${esc(c.token)}" placeholder="12345:AAzQc…"><button class="btn" id="pm_crypto_chk" type="button">Проверить</button></div>
+    <div class="hint">@CryptoBot → Crypto Pay → Создать приложение → токен API. Для теста — @CryptoTestnetBot и флажок ниже.</div>
+    <label class="check"><input type="checkbox" id="pm_crypto_tn" ${c.testnet?"checked":""}> Тестовая сеть (testnet)</label>
+    <label>Принимаемые монеты</label><div style="display:flex;flex-wrap:wrap;gap:4px 12px">${PAY.assets.map(a=>`<label class="check" style="margin:0"><input type="checkbox" class="pm_as" value="${a}" ${c.assets.includes(a)?"checked":""}> ${a}</label>`).join("")}</div>
+    <div class="hint">Покупатель платит эквивалент цены в выбранной монете по курсу CryptoBot. Оплата проверяется каждые 20 секунд.</div>`;
+  if (m === "manual") body = `<label>Реквизиты для перевода</label><textarea id="pm_manual_det" class="notr" rows="4" placeholder="Карта Т-Банк: 2200 0000 0000 0000, Иван И.&#10;СБП: +7 900 000-00-00 (Т-Банк)">${esc(c.details)}</textarea>
+    <label class="check"><input type="checkbox" id="pm_manual_code" ${c.unique_code?"checked":""}> Уникальные коды платежа</label>
+    <div class="hint">Пользователь получит код из 5 символов (например, K7M2X) и укажет его в комментарии к переводу; в уведомлении администратору — этот же код для сверки в банке. Без флажка в комментарии указывается номер заказа.</div>
+    <div class="hint">Бот покажет сумму и реквизиты. После кнопки «Я оплатил» администраторам придёт сообщение с кнопками «Подтвердить» / «Отклонить»; подтвердить можно и здесь.</div>
+    ${!PAY.admins.ids.length || PAY.admins.results.some(r=>r.known&&!r.ok) ? `<div class="warnbox" style="margin-top:8px">${stIcon("warn")} ${!PAY.admins.ids.length ? "Не подключён ни один администратор — уведомления о переводах в Telegram не придут." : "Последнее уведомление дошло не всем администраторам."} <a href="#bot" onclick="go('bot')">Настроить</a></div>` : ""}`;
+  return `<div class="pmeth ${on?"":"off"}">${head}${body}</div>`;
+}
+function payPending(){
+  const L = PAY.pending || [], el = $("#py_pending"); if (!el) return;
+  const claimed = L.filter(x => x.status === "claimed");
+  el.innerHTML = PAY.config.manual.on || claimed.length ? `<hr class="sep"><h3>Переводы — ожидают подтверждения</h3>${claimed.length ? `<div class="tbl"><table><tr><th>№</th><th>Код</th><th>Пользователь</th><th>Тариф</th><th>Сумма</th><th></th></tr>
+    ${claimed.map(o=>`<tr><td>${o.id}</td><td class="mono"><b>${esc(o.code||"—")}</b></td><td>${esc(o.name||"")} ${o.tg_username?`<span class="muted">@${esc(o.tg_username)}</span>`:""}</td><td>${o.months} мес.</td><td>${money(o.amount,o.currency)}</td>
+    <td style="white-space:nowrap"><button class="btn sm p" onclick="payDecide(${o.id},'confirm')">Подтвердить</button> <button class="btn sm d" onclick="payDecide(${o.id},'reject')">Отклонить</button></td></tr>`).join("")}</table></div>`
+    : `<div class="muted small">Нет заявок. Заявка появляется, когда пользователь нажимает «Я оплатил».</div>`}` : "";
+}
+async function payDecide(id, action){
+  const o = (PAY.pending||[]).find(x=>x.id===id) || {}, ref = o.code ? ` (код ${o.code})` : "";
+  if (!confirm(action==="confirm" ? `Подтвердить оплату по заказу №${id}${ref}? Подписка продлится.` : `Отклонить заказ №${id}${ref}? Пользователь получит сообщение.`)) return;
+  const r = await act(()=>call("POST",`payments/manual/${id}/${action}`), action==="confirm"?"Подтверждено":"Отклонено");
+  PAY.pending = r.pending; payPending();
+}
+function admList(a){
+  if (!a.ids.length) return `<div class="warnbox">${stIcon("warn")} Не подключён ни один администратор — уведомления об оплатах и переводах в Telegram не приходят.</div>`;
+  return `<div class="admlist">${a.results.map(r=>`<div>${r.known ? (r.ok ? stIcon("ok") : stIcon("fail")) : stIcon("warn")} <span class="mono">${r.id}</span>
+    <span class="muted small">${r.known ? (r.ok ? "доставлено" : esc(r.error)) : "ещё не проверялось"}</span></div>`).join("")}</div>`;
+}
+async function admBox(){
+  const el = $("#adm_box"); if (!el) return;
+  const a = await call("GET","bot/admins");
+  el.innerHTML = `<label>Уведомления администраторам</label>${admList(a)}
+    <div class="actions" style="margin-top:8px"><button class="btn sm p" id="adm_link">Подключить мой Telegram</button>${a.ids.length?`<button class="btn sm" id="adm_test">Проверить</button>`:""}</div>
+    <div id="adm_res"></div>`;
+  $("#adm_link").onclick = async () => {
+    const r = await act(()=>call("POST","bot/admins/link"));
+    $("#adm_res").innerHTML = `<div class="hint" style="margin-top:8px">Откройте ссылку в Telegram с аккаунта, на который нужны уведомления, и нажмите «Старт». Ссылка действует 15 минут.</div>
+      <div class="actions" style="margin-top:6px"><a class="btn sm p" href="${esc(r.url)}" target="_blank" rel="noopener">Открыть @${esc(r.bot)}</a>
+      <span class="muted small">или отправьте боту: <span class="mono">/admin ${esc(r.code)}</span></span></div>`;
+    const t0 = Date.now(), before = a.ids.join(",");
+    const poll = async () => { if (!$("#adm_box") || Date.now() - t0 > 900000) return;
+      const x = await call("GET","bot/admins").catch(()=>null);
+      if (x && x.ids.join(",") !== before) { toast("Telegram подключён"); const inp = $("#s_adm"); if (inp) inp.value = x.ids.join(", "); return admBox(); }
+      setTimeout(poll, 3000); };
+    setTimeout(poll, 3000);
+  };
+  const t = $("#adm_test"); if (t) t.onclick = async () => { const r = await act(()=>call("POST","bot/admins/test")); admBox();
+    const bad = r.results.filter(x=>!x.ok); toast(bad.length ? "Не всем доставлено — см. причины" : "Доставлено", !!bad.length); };
+}
+function segbtn(sel, key, cur, fn, quiet){
+  const box = $(sel); if (!box) return;
+  box.querySelectorAll("button").forEach(b => { b.classList.toggle("on", b.dataset[key] === cur); if (!quiet && fn) b.onclick = () => { box.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b)); fn(b.dataset[key]); }; });
+}
+const BUI_NAMES = {buy:"Купить / продлить", page:"Страница подписки", me:"Моя подписка", promo:"Промокод", help:"Как подключиться", phone:"Привязать номер", support:"Поддержка", lang:"Сменить язык"};
+function buiList(){
+  const L = BUI.cfg.buttons, el = $("#bui_list");
+  el.innerHTML = L.map((b,i) => {
+    const own = !BUI.builtin[b.id], def = BUI.builtin[b.id] || ["",""];
+    return `<div class="brow ${b.on===false?"off":""} ${b.same_row&&i>0?"joined":""}">
+      <div class="mv"><button onclick="buiMove(${i},-1)" ${i===0?"disabled":""}>▲</button><button onclick="buiMove(${i},1)" ${i===L.length-1?"disabled":""}>▼</button></div>
+      <input type="checkbox" title="Показывать" ${b.on!==false?"checked":""} onchange="buiSet(${i},'on',this.checked)">
+      <input type="text" class="notr" placeholder="${esc(def[0]||"Подпись RU")}" value="${esc(b.ru||"")}" oninput="buiSet(${i},'ru',this.value,1)">
+      <input type="text" class="en notr" placeholder="${esc(def[1]||"Label EN")}" value="${esc(b.en||"")}" oninput="buiSet(${i},'en',this.value,1)">
+      ${own?`<button class="btn sm d" onclick="buiDel(${i})" title="Удалить">✕</button>`:"<span></span>"}
+      <div class="meta"><span class="tag">${own?(b.type==="url"?"ссылка":"сообщение"):esc(BUI_NAMES[b.id]||b.id)}</span>${own?"":`<span>${esc(BUI.hints[b.id]||"")}</span>`}
+        ${i>0?`<label><input type="checkbox" ${b.same_row?"checked":""} onchange="buiSet(${i},'same_row',this.checked)"> В строке с предыдущей</label>`:""}</div>
+      ${own&&b.type==="url"?`<div class="extra"><input type="text" placeholder="https://… или tg://…" value="${esc(b.url||"")}" oninput="buiSet(${i},'url',this.value,1)"></div>`:""}
+      ${own&&b.type==="text"?`<div class="extra row2"><textarea class="notr" rows="3" placeholder="Текст сообщения (RU)" oninput="buiSet(${i},'text_ru',this.value,1)">${esc(b.text_ru||"")}</textarea><textarea class="notr" rows="3" placeholder="Message text (EN)" oninput="buiSet(${i},'text_en',this.value,1)">${esc(b.text_en||"")}</textarea></div>`:""}
+    </div>`; }).join("");
+}
+function buiSet(i, k, v, soft){ BUI.cfg.buttons[i][k] = v; if (!soft) buiList(); buiPreview(); }
+function buiMove(i, d){ const L = BUI.cfg.buttons, j = i + d; if (j < 0 || j >= L.length) return; [L[i], L[j]] = [L[j], L[i]]; buiList(); buiPreview(); }
+function buiDel(i){ BUI.cfg.buttons.splice(i,1); buiList(); buiPreview(); }
+function buiAdd(type){
+  const id = "c_" + Math.random().toString(16).slice(2,8);
+  BUI.cfg.buttons.push(type==="url" ? {id, type, on:true, ru:"", en:"", url:""} : {id, type, on:true, ru:"", en:"", text_ru:"", text_en:""});
+  buiList(); buiPreview();
+  const rows = document.querySelectorAll("#bui_list .brow"); const last = rows[rows.length-1]; last.scrollIntoView({behavior:"smooth", block:"center"}); last.querySelector("input[type=text]").focus();
+}
+function buiTexts(){
+  const l = BPREV.lang, T = BUI.cfg.texts;
+  const names = [["welcome","Приветствие (после первого /start)"],["menu","Главное меню"],["help","Как подключиться"]];
+  $("#bui_texts").innerHTML = names.map(([k,t]) => `<label>${t}</label>
+    <textarea id="bt_${k}" rows="${k==="help"?9:6}" oninput="BUI.cfg.texts['${k}_${l}']=this.value;BPREV.view='${k}';segbtn('#pv_view','v','${k}',null,true);buiPreview()">${esc(T[k+"_"+l]||"")}</textarea>
+    <div class="chips">${BUI.placeholders.map(p=>`<button type="button" onclick="buiIns('${k}','{${p}}')">{${p}}</button>`).join("")}<button type="button" onclick="buiIns('${k}','<b></b>')">&lt;b&gt;</button><button type="button" onclick="buiDefText('${k}')">↺ стандартный</button></div>`).join("");
+}
+function buiIns(k, txt){
+  const ta = $("#bt_"+k), a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a;
+  ta.value = ta.value.slice(0,a) + txt + ta.value.slice(b); ta.focus(); ta.selectionStart = ta.selectionEnd = a + (txt==="<b></b>"?3:txt.length);
+  ta.dispatchEvent(new Event("input"));
+}
+function buiDefText(k){ const key = k+"_"+BPREV.lang; BUI.cfg.texts[key] = BUI.defaults.texts[key]; buiTexts(); BPREV.view = k; segbtn('#pv_view','v',k,null,true); buiPreview(); }
+function tgHtml(src){
+  let h = esc(src);
+  h = h.replace(/&lt;(\/?)(b|strong|i|em|u|ins|s|strike|del|code|pre)&gt;/g, "<$1$2>");
+  h = h.replace(/&lt;a href=(?:&quot;|&#39;)(https?:\/\/[^"'<>\s]+?|tg:\/\/[^"'<>\s]+?)(?:&quot;|&#39;)&gt;/g, '<a href="$1" target="_blank" rel="noopener">').replace(/&lt;\/a&gt;/g, "</a>");
+  return h;
+}
+function buiRender(tpl, v){
+  const keys = BUI.placeholders;
+  const lines = tpl.split("\n").filter(line => !keys.some(k => line.includes("{"+k+"}") && !v[k]));
+  let t = lines.join("\n"); keys.forEach(k => t = t.split("{"+k+"}").join(v[k]||""));
+  return t.replace(/\n{3,}/g, "\n\n").trim();
+}
+function buiPreview(){
+  if (!$("#pv_msg")) return;
+  const l = BPREV.lang, en = l === "en";
+  const page = BUI.public_url ? BUI.public_url + "/u/AbC123xyz" : "";
+  const v = {title: BUI.title||"VPN", name: en?"Alex":"Иван", status: en?"Active":"Активна", expires: en?"07/12/2026":"07.12.2026", page, support: (BUI.support||"").trim()};
+  const tpl = BUI.cfg.texts[BPREV.view+"_"+l] || "";
+  $("#pv_msg").innerHTML = tgHtml(buiRender(tpl, v)) || `<span style="opacity:.5">${en?"(empty)":"(пусто)"}</span>`;
+  const sup = (BUI.support||"").trim(), supOk = sup.startsWith("@") || /^(https?|tg):\/\//.test(sup);
+  const rows = [];
+  BUI.cfg.buttons.forEach(b => {
+    if (b.on === false) return;
+    if (b.id === "page" && !BUI.public_url) return;
+    if (b.id === "phone" && BPREV.phone) return;
+    if (b.id === "support" && !supOk) return;
+    const def = BUI.builtin[b.id];
+    const text = (en ? (b.en || b.ru) : (b.ru || b.en)) || (def ? def[en?1:0] : "?");
+    const url = b.id === "page" || b.id === "support" || b.type === "url";
+    const btn = `<div class="b ${url?"u":""}" title="${esc(text)}">${esc(text)}</div>`;
+    if (b.same_row && rows.length && rows[rows.length-1].length < BUI.cfg.max_row) rows[rows.length-1].push(btn); else rows.push([btn]);
+  });
+  $("#pv_kb").innerHTML = rows.map(r => `<div class="r">${r.join("")}</div>`).join("");
+}
+
+start();
+</script>
+</body>
+</html>

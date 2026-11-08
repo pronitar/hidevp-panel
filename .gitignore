@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+dist/
+src.zip
+notes.md
+master/app/release_key.pub

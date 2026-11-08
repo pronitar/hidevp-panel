@@ -1,0 +1,36 @@
+name: release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Сборка и подпись
+        env:
+          HIDEVP_RELEASE_KEY: ${{ secrets.HIDEVP_RELEASE_KEY }}
+          NOTES: ${{ github.event.release.body }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          pip install -q "cryptography>=42"
+          printf '%s' "$NOTES" > notes.md
+          git archive --format=zip --prefix=hidevp-panel/ -o src.zip HEAD
+          python3 tools/release.py --zip src.zip --notes-file notes.md --out dist --expect-version "$TAG"
+          ls -la dist
+
+      - name: Прикрепить файлы к релизу
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/* --clobber
