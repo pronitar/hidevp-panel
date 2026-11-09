@@ -655,8 +655,7 @@ async def user_action(request: Request):
     elif act == "extend":
         core.extend_user(uid, float(d.get("days") or 30))
     elif act == "regen":
-        import uuid as uuidlib
-        ex("UPDATE users SET uuid=?, token=? WHERE id=?", (str(uuidlib.uuid4()), secrets.token_urlsafe(18), uid))
+        core.regen_user(uid)
     elif act == "unsuspend":
         ex("UPDATE users SET suspended_until=0 WHERE id=?", (uid,))
     elif act == "message":

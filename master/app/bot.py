@@ -56,6 +56,7 @@ class BotManager:
         self.username = ""
         self.error = ""
         self.awaiting_promo: set[int] = set()
+        self.regen_at: dict[int, float] = {}
 
     async def start(self):
         await self.stop()
@@ -654,7 +655,7 @@ class BotManager:
             return f"https://t.me/{self.username}"
         return await self.bot.call("createInvoiceLink", **self.invoice_params(u, months, method))
 
-    async def send_status(self, chat, u):
+    async def send_status(self, chat, u, note: str = ""):
         u = self.reload(u)
         used = core.fmt_bytes(u["used_up"] + u["used_down"])
         limit = core.fmt_bytes(u["traffic_limit"]) if u["traffic_limit"] else T(u, "без ограничений", "unlimited")
@@ -665,7 +666,36 @@ class BotManager:
         if core.public_url():
             text += (T(u, "\nСтраница подписки:\n", "\nSubscription page:\n") + html.escape(core.user_page_url(u)) +
                      T(u, "\n\nСсылка подписки (Happ, INCY):\n", "\n\nSubscription link (Happ, INCY):\n") + f"<code>{html.escape(core.sub_url(u))}</code>")
-        await self.send(chat, text, self.menu_kb(u))
+        text = note + text
+        kb = self.menu_kb(u)
+        if not any(b.get("callback_data") == "regen" for row in kb["inline_keyboard"] for b in row):
+            kb["inline_keyboard"].insert(0, [{"text": botui.label({"id": "regen"}, L(u)), "callback_data": "regen"}])
+        await self.send(chat, text, kb)
+
+    async def ask_regen(self, chat, u):
+        text = T(u, "🔄 <b>Перевыпустить ссылки?</b>\n\nБудут выпущены новая ссылка подписки и новая личная страница. "
+                    "Старые перестанут работать — используйте это, если ссылка попала к посторонним.\n\n"
+                    "После перевыпуска добавьте подписку в Happ или INCY заново.",
+                 "🔄 <b>Reissue links?</b>\n\nA new subscription link and a new personal page will be issued. "
+                    "The old ones will stop working — use this if your link has leaked.\n\n"
+                    "After reissuing, add the subscription to Happ or INCY again.")
+        await self.send(chat, text, {"inline_keyboard": [
+            [{"text": T(u, "✅ Перевыпустить", "✅ Reissue"), "callback_data": "regen:ok"}],
+            [{"text": T(u, "◀️ Отмена", "◀️ Cancel"), "callback_data": "menu"}]]})
+
+    async def do_regen(self, chat, u):
+        now = time.time()
+        last = self.regen_at.get(u["id"], 0)
+        if now - last < 300:
+            wait = int((300 - (now - last)) // 60) + 1
+            return await self.send(chat, T(u, f"⏳ Ссылки уже перевыпускались. Повторить можно через {wait} мин.",
+                                           f"⏳ Links were just reissued. Try again in {wait} min."), self.menu_kb(u))
+        self.regen_at[u["id"]] = now
+        core.regen_user(u["id"])
+        request_sync()
+        log.info("user %s reissued links via bot", u["id"])
+        await self.send_status(chat, u, T(u, "✅ Ссылки перевыпущены. Старые больше не работают — добавьте подписку в приложение заново.\n\n",
+                                          "✅ Links reissued. The old ones no longer work — add the subscription to the app again.\n\n"))
 
     async def send_help(self, chat, u):
         await self.send(chat, self.text("help", u), self.menu_kb(u))
@@ -687,6 +717,10 @@ class BotManager:
             await self.send_tariffs(chat, u)
         elif data == "me":
             await self.send_status(chat, u)
+        elif data == "regen":
+            await self.ask_regen(chat, u)
+        elif data == "regen:ok":
+            await self.do_regen(chat, u)
         elif data == "help":
             await self.send_help(chat, u)
         elif data == "phone":

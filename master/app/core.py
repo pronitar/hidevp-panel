@@ -120,6 +120,10 @@ def sub_url(u) -> str:
     return f"{public_url()}/sub/{u['token']}"
 
 
+def regen_user(uid: int):
+    ex("UPDATE users SET uuid=?, token=? WHERE id=?", (str(uuidlib.uuid4()), secrets.token_urlsafe(18), uid))
+
+
 def happ_link(u) -> str:
     return "happ://add/" + sub_url(u)
 

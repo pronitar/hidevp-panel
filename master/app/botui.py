@@ -8,6 +8,7 @@ BUILTIN = {
     "buy":     ("💳 Купить / продлить", "💳 Buy / renew"),
     "page":    ("🌐 Страница подписки", "🌐 Subscription page"),
     "me":      ("👤 Моя подписка", "👤 My subscription"),
+    "regen":   ("🔄 Перевыпустить ссылки", "🔄 Reissue links"),
     "promo":   ("🎟 Промокод", "🎟 Promo code"),
     "help":    ("📱 Как подключиться", "📱 How to connect"),
     "phone":   ("☎️ Привязать номер для входа на сайт", "☎️ Link phone for website login"),
@@ -16,7 +17,7 @@ BUILTIN = {
 }
 BUILTIN_HINT = {
     "buy": "тарифы и оплата", "page": "ссылка на личную страницу (если задан публичный адрес)",
-    "me": "статус, трафик, ссылка подписки", "promo": "ввод промокода", "help": "текст «Как подключиться»",
+    "me": "статус, трафик, ссылка подписки", "regen": "новые ссылки подписки и личной страницы, старые перестают работать", "promo": "ввод промокода", "help": "текст «Как подключиться»",
     "phone": "видна, пока номер не привязан", "support": "ссылка на контакт поддержки из настроек",
     "lang": "переключение RU/EN",
 }
@@ -24,7 +25,7 @@ BUILTIN_HINT = {
 DEFAULT_BUTTONS = [
     {"id": "buy"}, {"id": "page"}, {"id": "me"},
     {"id": "promo"}, {"id": "help", "same_row": True},
-    {"id": "phone"}, {"id": "support", "on": False}, {"id": "lang"},
+    {"id": "phone"}, {"id": "support", "on": False}, {"id": "regen", "on": False}, {"id": "lang"},
 ]
 
 DEFAULT_TEXTS = {
