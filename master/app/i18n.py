@@ -118,6 +118,7 @@ PATTERNS = [
     (r"\. Ответ: ", ". Response: "),
     (r"^Не больше (\d+) кнопок$", r"No more than \1 buttons"),
     (r"^Не удалось проверить обновления: (.*)$", r"Could not check for updates: \1"),
+    (r"^Не удалось проверить обновления на GitHub: (.*)$", r"Could not check for updates on GitHub: \1"),
     (r"^Не удалось запустить обновление: (.*)$", r"Could not start the update: \1"),
     (r"^Не удалось проверить порт (\d+) на сервере — попробуйте ещё раз$", r"Could not test port \1 on the server — try again"),
     (r"^Порт (\d+) недоступен снаружи \(проверено с: (.*)\)$", r"Port \1 is not reachable from outside (checked from: \2)"),

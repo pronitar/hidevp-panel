@@ -18,20 +18,14 @@ def _json(url):
 def list_versions(urls):
     found = {}
     for url in urls:
-        base = url.rsplit("/", 1)[0]
         try:
             if url.startswith("https://github.com/") and "/releases/" in url:
                 repo = "/".join(url.split("/")[3:5])
                 for r in _json(f"https://api.github.com/repos/{repo}/releases?per_page=30"):
                     v = (r.get("tag_name") or "").lstrip("vV")
                     a = [x for x in r.get("assets") or [] if x.get("name") == "latest.json"]
-                    if not r.get("draft") and a and VERSION_RE.fullmatch(v):
+                    if not r.get("draft") and not r.get("prerelease") and a and VERSION_RE.fullmatch(v):
                         found.setdefault(v, a[0]["browser_download_url"])
-            else:
-                for r in _json(base + "/releases.json").get("releases") or []:
-                    v = str(r.get("version") or "")
-                    if VERSION_RE.fullmatch(v):
-                        found.setdefault(v, f"{base}/hidevp-panel-{v}.json")
         except Exception:
             continue
     key = lambda v: tuple(int(x) for x in v.split("."))

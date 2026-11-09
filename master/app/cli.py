@@ -65,12 +65,6 @@ def main(argv=None):
     st = sub.add_parser("set-title")
     st.add_argument("title")
     sub.add_parser("get")
-    rl = sub.add_parser("release")
-    rl.add_argument("zip")
-    rl.add_argument("--notes", default="")
-    sub.add_parser("release-key")
-    mi = sub.add_parser("mirror")
-    mi.add_argument("state", choices=["on", "off"])
     pu = sub.add_parser("set-url")
     pu.add_argument("url")
     a = ap.parse_args(argv)
@@ -128,58 +122,12 @@ def main(argv=None):
     elif a.cmd == "set-title":
         set_setting("panel_title", a.title.strip()[:40])
         print(T("Название сервиса: ", "Service name: ") + get_setting("panel_title"))
-    elif a.cmd == "release":
-        from . import update
-        res = update.publish(a.zip, a.notes)
-        m = res["manifest"]
-        url = (get_setting("public_url") or "").rstrip("/") + "/updates/latest.json"
-        print("=" * 64)
-        print(T("  Релиз опубликован: ", "  Release published: ") + m["version"] + T(" (агент ", " (agent ") + m["agent_version"] + ")")
-        print(T("  Пакет: ", "  Package: ") + res["package"] + f"  ({m['size'] // 1024} KB)")
-        print(T("  Адрес обновлений: ", "  Update URL: ") + url)
-        print(T("  Ключ подписи: ", "  Signing key: ") + str(update.KEY_DIR / "ed25519.key") + T("  — сохраните его копию!", "  — keep a backup copy!"))
-        print("=" * 64)
-        if url != update.GITHUB_URL:
-            print(T("  Внимание: панели по умолчанию проверяют ", "  Note: panels check ") + update.GITHUB_URL +
-                  T(" — адрес отличается.", " by default — the URL differs."))
-        base = url.rsplit("/", 1)[0]
-        print(T("  Все панели HideVP увидят обновление в течение 6 часов (или сразу по кнопке «Проверить обновления»).",
-                "  All HideVP panels will see the update within 6 hours (or immediately via “Check for updates”)."))
-        print(T("  Установка для новых пользователей:", "  Install for new users:"))
-        print(f"    bash <(curl -fsSL {base}/install.sh)")
-    elif a.cmd == "release-key":
-        from . import update
-        key = update._load_or_create_key()
-        pub = update._pub_b64(key)
-        (update.KEY_DIR / "ed25519.pub").write_text(pub + "\n")
-        print("=" * 64)
-        print(T("  Ключ подписи релизов HideVP (хранится в ", "  HideVP release signing key (stored in ") + str(update.KEY_DIR) + ")")
-        print()
-        print(T("  1) Секрет для GitHub — скопируйте строку ниже целиком:", "  1) GitHub secret — copy the whole line below:"))
-        print(T("     github.com/pronitar/hidevp-panel → Settings → Secrets and variables → Actions →",
-                "     github.com/pronitar/hidevp-panel → Settings → Secrets and variables → Actions →"))
-        print(T("     New repository secret, имя: HIDEVP_RELEASE_KEY", "     New repository secret, name: HIDEVP_RELEASE_KEY"))
-        print()
-        print("     " + update.key_to_b64(key))
-        print()
-        print(T("  2) Публичный ключ (его можно показывать): ", "  2) Public key (safe to share): ") + pub)
-        print()
-        print(T("  Никому не передавайте строку из пункта 1 и сохраните копию папки ", "  Never share the line from step 1 and keep a backup of ") + str(update.KEY_DIR))
-        print("=" * 64)
-    elif a.cmd == "mirror":
-        set_setting("update_mirror", "1" if a.state == "on" else "0")
-        print(T("Зеркало обновлений включено: новые релизы с GitHub будут раздаваться по адресу ",
-                "Update mirror enabled: new GitHub releases will be served at ") +
-              (get_setting("public_url") or "").rstrip("/") + "/updates/" if a.state == "on"
-              else T("Зеркало обновлений выключено", "Update mirror disabled"))
-        print(T("Применится после перезапуска: systemctl restart hidevp-panel", "Takes effect after: systemctl restart hidevp-panel"))
     elif a.cmd == "get":
         a1 = q1("SELECT username FROM admins")
         for k, v in (("url", panel_url()), ("public_url", get_setting("public_url")),
                      ("login", a1["username"] if a1 else ""), ("port", get_setting("web_port")),
                      ("listen", get_setting("listen_host", "0.0.0.0")), ("path", get_setting("web_path")),
-                     ("title", get_setting("panel_title")), ("lang", get_setting("lang", "ru")),
-                     ("update_url", get_setting("update_url"))):
+                     ("title", get_setting("panel_title")), ("lang", get_setting("lang", "ru"))):
             print(f"{k}={v}")
     elif a.cmd == "set-url":
         set_setting("public_url", a.url.rstrip("/"))

@@ -4,7 +4,6 @@ import hashlib
 import io
 import json
 import logging
-import os
 import re
 import shutil
 import subprocess
@@ -17,24 +16,20 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from .db import DATA, get_setting, set_setting
 
 log = logging.getLogger("update")
 
-GITHUB_URL = "https://github.com/pronitar/hidevp-panel/releases/latest/download/latest.json"
-MIRROR_URL = "https://hidevp.ru/updates/latest.json"
-DEFAULT_UPDATE_URLS = [GITHUB_URL, MIRROR_URL]
+GITHUB_REPO = "pronitar/hidevp-panel"
+GITHUB_URL = f"https://github.com/{GITHUB_REPO}/releases/latest/download/latest.json"
 APP_DIR = Path(__file__).resolve().parent
 PUBKEY_FILE = APP_DIR / "release_key.pub"
-RELEASES = DATA / "releases"
 DOWNLOADS = DATA / "updates"
 ROLLBACK = APP_DIR.parents[1] / "rollback"
 KEEP_PACKAGES = 5
 VERSION_RE = re.compile(r"\d+(?:\.\d+){0,3}")
-KEY_DIR = Path(os.environ.get("HIDEVP_RELEASE_KEYS", "/root/.hidevp-release"))
 CHECK_EVERY = 6 * 3600
 UPDATE_LOG = Path("/var/log/hidevp-update.log")
 
@@ -61,15 +56,6 @@ def installed_version() -> str:
     return p.read_text().strip() if p.exists() else "0"
 
 
-def update_urls() -> list[str]:
-    custom = (get_setting("update_url") or "").strip()
-    return [custom] if custom else list(DEFAULT_UPDATE_URLS)
-
-
-def update_url() -> str:
-    return update_urls()[0]
-
-
 def _canon(manifest: dict) -> bytes:
     body = {k: v for k, v in manifest.items() if k != "signature"}
     return json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
@@ -94,92 +80,11 @@ def verify_manifest(m: dict):
         raise UpdateError("Неверный манифест обновления")
 
 
-def key_from_b64(raw: str) -> Ed25519PrivateKey:
-    raw = raw.strip()
-    if raw.startswith("-----BEGIN"):
-        return serialization.load_pem_private_key(raw.encode(), password=None)
-    return Ed25519PrivateKey.from_private_bytes(base64.b64decode(raw))
-
-
-def key_to_b64(key: Ed25519PrivateKey) -> str:
-    return base64.b64encode(key.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
-                                              serialization.NoEncryption())).decode()
-
-
-def _load_or_create_key() -> Ed25519PrivateKey:
-    KEY_DIR.mkdir(parents=True, exist_ok=True)
-    os.chmod(KEY_DIR, 0o700)
-    kf = KEY_DIR / "ed25519.key"
-    if kf.exists():
-        return serialization.load_pem_private_key(kf.read_bytes(), password=None)
-    key = Ed25519PrivateKey.generate()
-    kf.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
-                                     serialization.NoEncryption()))
-    os.chmod(kf, 0o600)
-    return key
-
-
-def _pub_b64(key: Ed25519PrivateKey) -> str:
-    raw = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-    return base64.b64encode(raw).decode()
-
-
-def publish(zip_path: str, notes: str = "", out_dir: Path | None = None, key: Ed25519PrivateKey | None = None) -> dict:
-    if key is None:
-        key = _load_or_create_key()
-        (KEY_DIR / "ed25519.pub").write_text(_pub_b64(key) + "\n")
-    pub = _pub_b64(key)
-    out_dir = Path(out_dir) if out_dir else RELEASES
-    with tempfile.TemporaryDirectory() as td:
-        with zipfile.ZipFile(zip_path) as z:
-            z.extractall(td)
-        vers = list(Path(td).rglob("VERSION"))
-        if not vers:
-            raise UpdateError("В архиве нет файла VERSION — это не пакет HideVP")
-        root = vers[0].parent
-        version = (root / "VERSION").read_text().strip()
-        agent = re.search(r'^VERSION = "(.+?)"', (root / "node" / "agent.py").read_text(), re.M)
-        (root / "master" / "app" / "release_key.pub").write_text(pub + "\n")
-        out_dir.mkdir(parents=True, exist_ok=True)
-        name = f"hidevp-panel-{version}.zip"
-        out = out_dir / name
-        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-            for f in sorted(root.rglob("*")):
-                if f.is_file() and "__pycache__" not in f.parts:
-                    z.write(f, "hidevp-panel/" + str(f.relative_to(root)))
-    data = out.read_bytes()
-    manifest = {"app": "hidevp-panel", "version": version, "agent_version": agent.group(1) if agent else "",
-                "file": name, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data),
-                "created": int(time.time()), "notes": notes.strip()[:2000]}
-    manifest["signature"] = base64.b64encode(key.sign(_canon(manifest))).decode()
-    text = json.dumps(manifest, ensure_ascii=False, indent=2)
-    (out_dir / "latest.json").write_text(text)
-    (out_dir / _manifest_name(version)).write_text(text)
-    _keep_last(out_dir)
-    return {"manifest": manifest, "pubkey": pub, "package": str(out)}
-
-
-def _manifest_name(version: str) -> str:
-    return f"hidevp-panel-{version}.json"
-
-
 def _keep_last(out_dir: Path, n: int = KEEP_PACKAGES):
     zips = sorted(out_dir.glob("hidevp-panel-*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
     for old in zips[n:]:
         old.unlink(missing_ok=True)
         old.with_suffix(".json").unlink(missing_ok=True)
-
-
-def releases_index(out_dir: Path = RELEASES) -> dict:
-    out = []
-    for f in out_dir.glob("hidevp-panel-*.json"):
-        try:
-            m = json.loads(f.read_text())
-            if (out_dir / m["file"]).exists():
-                out.append({"version": m["version"], "agent_version": m.get("agent_version", ""), "created": m.get("created", 0)})
-        except (ValueError, KeyError, OSError):
-            continue
-    return {"app": "hidevp-panel", "releases": sorted(out, key=lambda r: vt(r["version"]), reverse=True)}
 
 
 def _get(url: str, timeout=20, limit=60 * 1024 * 1024) -> bytes:
@@ -192,20 +97,14 @@ def _get(url: str, timeout=20, limit=60 * 1024 * 1024) -> bytes:
 
 
 def check() -> dict:
-    errors = []
-    for url in update_urls():
-        try:
-            m = json.loads(_get(url, timeout=15))
-            verify_manifest(m)
-            STATE.update(latest=m, error="", source=url, available=vt(m["version"]) > vt(installed_version()))
-            break
-        except UpdateError as e:
-            errors.append(str(e))
-        except Exception as e:
-            errors.append(f"{url.split('/')[2]}: {e}")
-    else:
-        own = [e for e in errors if e.startswith(("В этой", "Подпись", "Неверный"))]
-        STATE.update(error=own[0] if own else "Не удалось проверить обновления: " + "; ".join(errors))
+    try:
+        m = json.loads(_get(GITHUB_URL, timeout=15))
+        verify_manifest(m)
+        STATE.update(latest=m, error="", source=GITHUB_URL, available=vt(m["version"]) > vt(installed_version()))
+    except UpdateError as e:
+        STATE.update(error=str(e))
+    except Exception as e:
+        STATE.update(error=f"Не удалось проверить обновления на GitHub: {e}")
     STATE["checked_at"] = time.time()
     return state()
 
@@ -215,7 +114,6 @@ def state() -> dict:
     st = {k: v for k, v in STATE.items() if k != "latest"}
     st.update(installed=installed_version(), latest_version=m.get("version", ""), latest_agent=m.get("agent_version", ""),
               notes=m.get("notes", ""), created=m.get("created", 0), size=m.get("size", 0),
-              url=update_url(), custom_url=(get_setting("update_url") or "").strip(), default_url=GITHUB_URL,
               source=STATE.get("source", ""), signed=public_key() is not None,
               available=bool(m) and vt(m.get("version")) > vt(installed_version()))
     if st["updating"] and time.time() - STATE["updating_since"] > 600:
@@ -237,27 +135,17 @@ def _fetch_manifest(url: str, version: str = "") -> dict | None:
 
 
 def _remote_candidates() -> tuple[list[tuple[str, str]], list[str]]:
-    found, errors = [], []
-    for url in update_urls():
-        base = url.rsplit("/", 1)[0]
-        try:
-            if url.startswith("https://github.com/") and "/releases/" in url:
-                repo = "/".join(url.split("/")[3:5])
-                data = json.loads(_get(f"https://api.github.com/repos/{repo}/releases?per_page=30", timeout=15))
-                for r in data:
-                    v = (r.get("tag_name") or "").lstrip("vV")
-                    asset = next((a for a in r.get("assets") or [] if a.get("name") == "latest.json"), None)
-                    if not r.get("draft") and asset and VERSION_RE.fullmatch(v):
-                        found.append((v, asset["browser_download_url"]))
-            else:
-                data = json.loads(_get(f"{base}/releases.json", timeout=15))
-                for r in data.get("releases") or []:
-                    v = str(r.get("version") or "")
-                    if VERSION_RE.fullmatch(v):
-                        found.append((v, f"{base}/{_manifest_name(v)}"))
-        except Exception as e:
-            errors.append(f"{url.split('/')[2]}: {e}")
-    return found, errors
+    found = []
+    try:
+        data = json.loads(_get(f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=30", timeout=15))
+    except Exception as e:
+        return found, [f"GitHub: {e}"]
+    for r in data:
+        v = (r.get("tag_name") or "").lstrip("vV")
+        asset = next((a for a in r.get("assets") or [] if a.get("name") == "latest.json"), None)
+        if not r.get("draft") and not r.get("prerelease") and asset and VERSION_RE.fullmatch(v):
+            found.append((v, asset["browser_download_url"]))
+    return found, []
 
 
 def _cached() -> dict:
@@ -369,8 +257,7 @@ def package(version: str | None = None) -> Path:
     if cached:
         return cached[0]
     if m and m["version"] == version:
-        src = STATE.get("source")
-        return _download(m, [u.rsplit("/", 1)[0] for u in [src] + [x for x in update_urls() if x != src] if u])
+        return _download(m, [GITHUB_URL.rsplit("/", 1)[0]])
     local = local_copies().get(version)
     if local:
         return local["path"]
@@ -476,39 +363,11 @@ def read_log(lines=40) -> str:
         return ""
 
 
-def mirror_sync():
-    if get_setting("update_mirror") != "1":
-        return
-    m = STATE.get("latest")
-    if not m or not STATE.get("source", "").startswith("https://github.com/"):
-        return
-    cur = RELEASES / "latest.json"
-    try:
-        if cur.exists() and json.loads(cur.read_text()).get("sha256") == m["sha256"]:
-            return
-    except ValueError:
-        pass
-    pkg = package()
-    RELEASES.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(pkg, RELEASES / pkg.name)
-    text = json.dumps(m, ensure_ascii=False, indent=2)
-    (RELEASES / _manifest_name(m["version"])).write_text(text)
-    tmp = RELEASES / "latest.json.tmp"
-    tmp.write_text(text)
-    tmp.replace(cur)
-    _keep_last(RELEASES)
-    log.info("mirror: %s", m["version"])
-
-
 async def loop(notify):
     await asyncio.sleep(30)
     while True:
         try:
             st = await asyncio.to_thread(check)
-            try:
-                await asyncio.to_thread(mirror_sync)
-            except Exception:
-                log.exception("mirror")
             if st["available"] and get_setting("update_notified") != st["latest_version"]:
                 set_setting("update_notified", st["latest_version"])
                 await notify(st)

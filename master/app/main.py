@@ -248,13 +248,14 @@ async def refresh_node(node_id: int):
         ex("UPDATE nodes SET ip=? WHERE id=?", (g["ip"], node_id))
 
 
-async def _live_info(n: dict):
+async def _live_info(n: dict, timeout: float = 6) -> bool:
     try:
-        info = await nodes.call(n, "GET", "/api/info", timeout=6)
+        info = await asyncio.wait_for(nodes.call(n, "GET", "/api/info", timeout=timeout), timeout + 1)
         ex("UPDATE nodes SET info=?, status=CASE WHEN status='offline' THEN 'online' ELSE status END, last_seen=? WHERE id=?",
            (json.dumps(info), time.time(), n["id"]))
-    except nodes.NodeError:
-        pass
+        return True
+    except (nodes.NodeError, asyncio.TimeoutError):
+        return False
 
 
 async def nodes_list(request: Request):
@@ -316,6 +317,9 @@ async def node_one(request: Request):
                (k["host"], k["port"], k["api_key"], pem, nid))
             nodes.forget(nid)
         request_sync()
+    if request.method == "GET" and request.query_params.get("live") == "1":
+        alive = await _live_info(n, timeout=5)
+        return ok({**node_out(q1("SELECT * FROM nodes WHERE id=?", (nid,))), "live": alive})
     return ok(node_out(q1("SELECT * FROM nodes WHERE id=?", (nid,))))
 
 
@@ -1016,27 +1020,6 @@ async def backup_file(request: Request):
     return _zip_response(data, name)
 
 
-async def updates_public(request: Request):
-    from starlette.responses import FileResponse
-    name = request.path_params["name"]
-    if name == "install.sh":
-        f = update.root_dir() / "get.sh"
-        if not (f.exists() and (update.RELEASES / "latest.json").exists()):
-            return PlainTextResponse("Not found", status_code=404)
-        return PlainTextResponse(f.read_text(), headers={"cache-control": "no-cache"})
-    if name == "releases.json":
-        return JSONResponse(update.releases_index(), headers={"cache-control": "no-cache"})
-    if name == "latest.zip":
-        try:
-            name = json.loads((update.RELEASES / "latest.json").read_text())["file"]
-        except Exception:
-            return PlainTextResponse("Not found", status_code=404)
-    p = update.RELEASES / Path(name).name
-    if not (p.exists() and (name == "latest.json" or re.fullmatch(r"hidevp-panel-[\w.\-]+\.(zip|json)", name))):
-        return PlainTextResponse("Not found", status_code=404)
-    return FileResponse(p, headers={"cache-control": "no-cache"})
-
-
 async def update_state(request: Request):
     if request.method == "POST":
         return ok(await asyncio.to_thread(update.check))
@@ -1107,7 +1090,7 @@ async def notify_update(st: dict):
 
 
 SETTING_KEYS = ("panel_title", "public_url", "bot_token", "admin_tg_ids", "support",
-                "default_traffic_limit_gb", "default_device_limit", "tg_route", "tg_node_id", "tg_proxy", "lang", "update_url")
+                "default_traffic_limit_gb", "default_device_limit", "tg_route", "tg_node_id", "tg_proxy", "lang")
 TG_KEYS = ("bot_token", "tg_route", "tg_node_id", "tg_proxy")
 
 
@@ -1122,8 +1105,6 @@ async def settings(request: Request):
                     v = v.rstrip("/")
                     if v and not v.startswith(("http://", "https://")):
                         raise ApiError("Публичный адрес должен начинаться с http:// или https://")
-                if k == "update_url" and v and not v.startswith(("http://", "https://")):
-                    raise ApiError("Адрес обновлений должен начинаться с http:// или https://")
                 if k == "lang" and v not in ("ru", "en"):
                     raise ApiError("Неизвестное действие")
                 if k == "tg_route" and v not in ("direct", "node", "proxy"):
@@ -1426,7 +1407,6 @@ def build_app() -> Starlette:
         Route("/u/{token}/lang", user_lang, methods=["POST"]),
         Route("/u/{token}/pay", api(user_pay, auth=False), methods=["POST"]),
         Route("/", home),
-        Route("/updates/{name}", updates_public),
         Mount("/assets/flags", StaticFiles(directory=STATIC / "flags"), name="flags"),
         Route("/api/auth/request", api(auth_request, auth=False), methods=["POST"]),
         Route("/api/auth/verify", api(auth_verify, auth=False), methods=["POST"]),

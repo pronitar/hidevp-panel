@@ -125,8 +125,8 @@ vcmp() {
 }
 ROLLBACK_DIR=$BASE/rollback
 
-UPDATE_URLS_DEFAULT="https://github.com/pronitar/hidevp-panel/releases/latest/download/latest.json https://hidevp.ru/updates/latest.json"
-update_urls() { local u; u=$(has_master && mget update_url); echo "${u:-$UPDATE_URLS_DEFAULT}"; }
+UPDATE_URL="https://github.com/pronitar/hidevp-panel/releases/latest/download/latest.json"
+update_urls() { echo "$UPDATE_URL"; }
 pyexe() { [ -x "$MASTER/venv/bin/python" ] && echo "$MASTER/venv/bin/python" || echo python3; }
 
 fetch_release() {
@@ -263,25 +263,6 @@ menu_rollback() {
   [ -n "$src" ] || { err "$(m "Не удалось получить файлы версии" "Could not get the version files")"; return; }
   local HV_ROLLBACK=""
   offer_src "$src" && apply_src "$src"
-}
-
-publish_release() {
-  line; echo -e "${B}$(m "Публикация обновления" "Publish an update")${N}"; line
-  echo "$(m "Архив подписывается вашим ключом (/root/.hidevp-release, создаётся при первом запуске)" "The archive is signed with your key (/root/.hidevp-release, created on first run)")"
-  echo "$(m "и выкладывается по адресу" "and published at") $(mget public_url)/updates/latest.json"
-  echo "$(m "Все панели, проверяющие этот адрес, увидят обновление в течение 6 часов (или сразу по кнопке «Проверить»)." "All panels checking this URL see the update within 6 hours (or immediately via “Check”).")"
-  echo
-  local zip notes; zip=$(ask "$(m "Путь к архиву [/root/hidevp-panel.zip]:" "Archive path [/root/hidevp-panel.zip]:")"); zip=${zip:-/root/hidevp-panel.zip}
-  [ -f "$zip" ] || { err "$(m "Файл не найден:" "File not found:") $zip"; return; }
-  notes=$(ask "$(m "Что нового (одной строкой, можно пусто):" "What's new (one line, may be empty):")")
-  hidevp-panel release "$zip" --notes "$notes" || { err "$(m "Не удалось опубликовать" "Publishing failed")"; return; }
-  local pkg; pkg=$(ls -t "$MASTER"/data/releases/hidevp-panel-*.zip 2>/dev/null | head -1)
-  [ -n "$pkg" ] || return
-  echo
-  confirm "$(m "Установить этот (подписанный) релиз на этот сервер сейчас?" "Install this (signed) release on this server now?")" || return
-  local d; d=$(mktemp -d -p "$WORK"); unzip -q -o "$pkg" -d "$d"
-  update_all "$d/hidevp-panel"
-  rm -rf "$d"
 }
 
 xray_ver() { /usr/local/bin/xray version 2>/dev/null | head -1 | awk '{print $2}'; }
@@ -592,9 +573,6 @@ menu_installed() {
     echo "$n) $(m "Данные входа в админку" "Admin login details")";                 act[$n]=info; ((n++))
     echo "$n) $(m "Изменить данные админки/администратора" "Change admin credentials/settings")"; act[$n]=admin; ((n++))
     echo "$n) $(m "Домен и сертификат" "Domain & certificate")";                    act[$n]=domain; ((n++))
-    if [ -f /root/.hidevp-release/ed25519.key ]; then
-      echo "$n) $(m "Опубликовать обновление (для автора)" "Publish an update (author)")";   act[$n]=publish; ((n++))
-    fi
   fi
   if has_node; then
     echo "$n) $(m "Показать ключ узла" "Show node key")";                           act[$n]=key; ((n++))
@@ -617,7 +595,6 @@ menu_installed() {
     info)    hidevp-panel info; pause ;;
     admin)   menu_admin ;;
     domain)  menu_domain ;;
-    publish) publish_release; pause ;;
     key)     echo; hidevp-node key; echo; echo "$(m "Вставьте в админке: Серверы → Подключить сервер" "Paste it in the admin panel: Servers → Connect server")"; pause ;;
     xray)    menu_xray ;;
     rotate)  confirm "$(m "Старый ключ перестанет работать. Перевыпустить?" "The old key will stop working. Reissue?")" && {
@@ -647,7 +624,6 @@ case "${1:-}" in
   install-node)   install_node; exit ;;
   update)         update_all; exit ;;
   rollback)       menu_rollback; exit ;;
-  publish)        publish_release; exit ;;
 esac
 
 while true; do

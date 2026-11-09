@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-URLS="${HIDEVP_UPDATE_URL:-https://github.com/pronitar/hidevp-panel/releases/latest/download/latest.json https://hidevp.ru/updates/latest.json}"
+URLS="https://github.com/pronitar/hidevp-panel/releases/latest/download/latest.json"
 [ "$(id -u)" -eq 0 ] || { echo "Run as root / Запустите от root: sudo -i"; exit 1; }
 command -v apt-get >/dev/null || { echo "Ubuntu 22.04+ / Debian 11+ required"; exit 1; }
 need=""; for c in curl unzip python3; do command -v $c >/dev/null || need="$need $c"; done
