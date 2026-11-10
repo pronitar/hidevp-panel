@@ -4,6 +4,13 @@ HV_LANG="${HV_LANG:-$(cat /opt/hidevp-panel/lang 2>/dev/null || echo ru)}"
 m() { [ "$HV_LANG" = en ] && printf '%s' "$2" || printf '%s' "$1"; }
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "${HV_STAGED:-}" ] && [ "$(id -u)" -eq 0 ]; then
+  HV_STAGED=$(mktemp -d /var/tmp/hidevp-inst.XXXXXX)
+  cp -r "$SRC/." "$HV_STAGED/"
+  export HV_STAGED HV_ORIG_SRC="$SRC"
+  exec bash "$HV_STAGED/$(basename "${BASH_SOURCE[0]}")" "$@"
+fi
+[ -n "${HV_STAGED:-}" ] && trap 'rm -rf "$HV_STAGED"' EXIT
 DEST=/opt/hidevp-panel/node
 
 [ "$(id -u)" -eq 0 ] || { echo "$(m "Запустите от root: sudo bash $0" "Run as root: sudo bash $0")"; exit 1; }
@@ -118,7 +125,7 @@ sleep 2
 
 mkdir -p /opt/hidevp-panel; echo "$HV_LANG" > /opt/hidevp-panel/lang
 STORE=/opt/hidevp-panel/src
-if [ "$(readlink -f "$SRC")" != "$STORE" ]; then
+if [ "$(readlink -f "${HV_ORIG_SRC:-$SRC}")" != "$STORE" ]; then
   OLDV=$(cat "$STORE/VERSION" 2>/dev/null || true); NEWV=$(cat "$SRC/VERSION" 2>/dev/null || true)
   if [ -n "$OLDV" ] && [ "$OLDV" != "$NEWV" ] && [ -f "$STORE/install-master.sh" ]; then
     mkdir -p /opt/hidevp-panel/rollback && chmod 700 /opt/hidevp-panel/rollback

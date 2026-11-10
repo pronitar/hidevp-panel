@@ -334,7 +334,7 @@ def start_master_update(version: str | None = None, rollback: bool = False) -> d
               f"rc=$?; if [ $rc -ne 0 ] && [ -f {store}/install-master.sh ]; then echo __HV_RESTORE__ >> {UPDATE_LOG}; "
               f"(cd {store} && HV_LANG={lang} DOMAIN= bash install-master.sh </dev/null >> {UPDATE_LOG} 2>&1) "
               f"&& echo __HV_RESTORED__ >> {UPDATE_LOG}; fi; echo \"__HV_DONE__ $rc\" >> {UPDATE_LOG}; rm -rf {tmp}")
-    r = subprocess.run(["systemd-run", "--unit", f"hidevp-update-{int(time.time())}", "--collect",
+    r = subprocess.run(["systemd-run", "--no-block", "--unit", f"hidevp-update-{int(time.time())}", "--collect",
                         "--property=Type=oneshot", "bash", "-c", script], capture_output=True, text=True)
     if r.returncode != 0:
         shutil.rmtree(tmp, ignore_errors=True)
