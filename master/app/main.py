@@ -33,6 +33,7 @@ COOKIE = "vp_s"
 FAILS: dict[str, list[float]] = {}
 
 TRANSPORTS = ("tcp", "xhttp", "grpc")
+PROTO_LABEL = {"vless": "VLESS", "trojan": "Trojan", "ss": "Shadowsocks", "hy2": "Hysteria2"}
 FINGERPRINTS = ("chrome", "firefox", "safari", "ios", "android", "edge", "random", "randomized")
 
 
@@ -395,7 +396,7 @@ async def reload_all(request: Request):
 
 def vpn_out(v):
     n = q1("SELECT id,name,host,country_code,status FROM nodes WHERE id=?", (v["node_id"],)) or {}
-    d = {k: val for k, val in v.items() if k != "private_key"}
+    d = {k: val for k, val in v.items() if k not in ("private_key", "key_pem", "cert_pem")}
     d["node"] = {**n, "flag": core.flag(n.get("country_code", ""))} if n else None
     return d
 
@@ -462,7 +463,7 @@ async def _reach(n: dict, ports: list[int]) -> dict | None:
     return out
 
 
-async def port_guard(node_id: int, port: int, vid: int | None, force: bool = False) -> dict:
+async def port_guard(node_id: int, port: int, vid: int | None, force: bool = False, protocol: str = "vless") -> dict:
     n = q1("SELECT * FROM nodes WHERE id=?", (node_id,))
     if not n:
         raise ApiError("Выберите подключённый сервер")
@@ -472,10 +473,15 @@ async def port_guard(node_id: int, port: int, vid: int | None, force: bool = Fal
         n["info"] = json.dumps(info)
     except nodes.NodeError:
         info = json.loads(n.get("info") or "{}")
-    busy = {int(p): who for p, who in (info.get("busy_ports") or {}).items()}
-    busy[int(n["port"])] = "work-панель"
-    for v in q("SELECT port, name FROM vpns WHERE node_id=? AND id!=?", (node_id, vid or 0)):
-        busy[int(v["port"])] = f"VPN «{v['name']}»"
+    udp_only = protocol == "hy2"
+    busy = {} if udp_only else {int(p): who for p, who in (info.get("busy_ports") or {}).items()}
+    if not udp_only:
+        busy[int(n["port"])] = "work-панель"
+    mine = {"udp"} if udp_only else ({"tcp", "udp"} if protocol == "ss" else {"tcp"})
+    for v in q("SELECT port, name, protocol FROM vpns WHERE node_id=? AND id!=?", (node_id, vid or 0)):
+        other = {"udp"} if v["protocol"] == "hy2" else ({"tcp", "udp"} if v["protocol"] == "ss" else {"tcp"})
+        if mine & other:
+            busy[int(v["port"])] = f"VPN «{v['name']}»"
     free = [p for p in PORT_CANDIDATES if p not in busy and p != port]
 
     if port in busy:
@@ -483,7 +489,7 @@ async def port_guard(node_id: int, port: int, vid: int | None, force: bool = Fal
         sugg = [p for p in free if r is None or (p in r and (r[p]["ok"] > 0 or r[p]["total"] == 0))][:4] or free[:4]
         raise ApiError(f"Порт {port} занят: {busy[port]}", extra={"code": "port_busy", "suggest": sugg})
 
-    if force:
+    if force or udp_only:
         return {"checked": False}
     r = await _reach(n, [port] + free[:4])
     if r is None:
@@ -508,8 +514,19 @@ def validate_vpn(d: dict, node_id: int, vid: int | None = None) -> dict:
     port = int(d.get("port") or 443)
     if not 1 <= port <= 65535:
         raise ApiError("Порт должен быть от 1 до 65535")
-    transport = d.get("transport", "tcp")
-    if transport not in TRANSPORTS:
+    protocol = d.get("protocol") or "vless"
+    if protocol not in core.PROTOCOLS:
+        raise ApiError("Неизвестный протокол")
+    info = json.loads(n.get("info") or "{}")
+    if protocol != "vless" and info.get("version") and not _ver_ok(info, "1.1.0"):
+        raise ApiError(f"Протокол {PROTO_LABEL[protocol]} требует work-панель 1.1.0 или новее — обновите её в разделе «Обновления»")
+    if protocol == "hy2":
+        xv = re.search(r"(\d+\.\d+\.\d+)", info.get("xray") or "")
+        if xv and _vt(xv.group(1)) < _vt(core.HY2_MIN_XRAY):
+            raise ApiError(f"Hysteria2 требует Xray {core.HY2_MIN_XRAY} или новее (на сервере {xv.group(1)}) — "
+                           "обновите Xray: hidevp → Xray → Переустановить")
+    transport = d.get("transport", "tcp") if protocol in core.REALITY_PROTOCOLS else ""
+    if protocol in core.REALITY_PROTOCOLS and transport not in TRANSPORTS:
         raise ApiError("Неизвестный транспорт")
     fp = d.get("fingerprint", "chrome")
     if fp not in FINGERPRINTS:
@@ -524,24 +541,48 @@ def validate_vpn(d: dict, node_id: int, vid: int | None = None) -> dict:
     if path and not path.startswith("/"):
         path = "/" + path
     service = str(d.get("service_name") or "").strip() or (secrets.token_hex(5) if transport == "grpc" else "")
-    out.update(node_id=node_id, port=port, transport=transport, fingerprint=fp, sni=sni,
-               dest=f"{sni}:443", path=path, service_name=service,
-               name=str(d.get("name") or "").strip()[:60] or f"{n['name']} · {transport.upper()}",
+    if protocol == "ss":
+        sni, fp = "", ""
+    elif protocol == "hy2":
+        fp = ""
+    label = PROTO_LABEL[protocol] + (f" {transport.upper()}" if protocol in core.REALITY_PROTOCOLS and transport != "tcp" else "")
+    out.update(node_id=node_id, port=port, transport=transport, fingerprint=fp, sni=sni, protocol=protocol,
+               dest=f"{sni}:443" if sni else "", path=path, service_name=service,
+               obfs_on=bool(d.get("obfs_on", bool(d.get("obfs")))),
+               name=str(d.get("name") or "").strip()[:60] or f"{n['name']} · {label}",
                enabled=1 if d.get("enabled", True) else 0, sort=int(d.get("sort") or 0))
     return out
+
+
+def vpn_secrets(vid: int, v: dict, regen: bool = False):
+    """Ключи для протокола VPN: создаются, если их нет (или при перевыпуске)."""
+    cur = q1("SELECT * FROM vpns WHERE id=?", (vid,))
+    proto = v["protocol"]
+    if proto in core.REALITY_PROTOCOLS and (regen or not cur.get("private_key")):
+        priv, pub = core.reality_keypair()
+        ex("UPDATE vpns SET private_key=?, public_key=?, short_id=? WHERE id=?", (priv, pub, secrets.token_hex(4), vid))
+    if proto == "ss" and (regen or not cur.get("server_key")):
+        ex("UPDATE vpns SET server_key=? WHERE id=?", (core.ss_server_key(), vid))
+    if proto == "hy2":
+        if regen or not cur.get("cert_pem"):
+            cert, key, pin = core.self_signed_cert(v["sni"] or "www.microsoft.com")
+            ex("UPDATE vpns SET cert_pem=?, key_pem=?, cert_pin=? WHERE id=?", (cert, key, pin, vid))
+        if not v.get("obfs_on"):
+            ex("UPDATE vpns SET obfs='' WHERE id=?", (vid,))
+        elif regen or not cur.get("obfs"):
+            ex("UPDATE vpns SET obfs=? WHERE id=?", (secrets.token_urlsafe(12), vid))
 
 
 async def vpns_list(request: Request):
     if request.method == "POST":
         d = await body(request)
         v = validate_vpn(d, int(d.get("node_id") or 0))
-        await port_guard(v["node_id"], v["port"], None, bool(d.get("force")))
-        priv, pub = core.reality_keypair()
-        vid = ex("""INSERT INTO vpns(name,node_id,port,transport,sni,dest,fingerprint,private_key,public_key,
-                    short_id,path,service_name,enabled,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        await port_guard(v["node_id"], v["port"], None, bool(d.get("force")), v["protocol"])
+        vid = ex("""INSERT INTO vpns(name,node_id,port,transport,sni,dest,fingerprint,path,service_name,enabled,sort,
+                    protocol,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                  (v["name"], v["node_id"], v["port"], v["transport"], v["sni"], v["dest"], v["fingerprint"],
-                  priv, pub, secrets.token_hex(4), v["path"], v["service_name"], v["enabled"], v["sort"],
-                  time.time()))
+                  v["path"], v["service_name"], v["enabled"], v["sort"], v["protocol"], time.time()))
+        vpn_secrets(vid, v, regen=True)
         request_sync()
         return ok(vpn_out(q1("SELECT * FROM vpns WHERE id=?", (vid,))))
     return ok([vpn_out(v) for v in q("SELECT * FROM vpns ORDER BY sort, id")])
@@ -560,16 +601,14 @@ async def vpn_one(request: Request):
         d = await body(request)
         merged = {**v, **d}
         nv = validate_vpn(merged, int(merged["node_id"]), vid)
-        if nv["port"] != v["port"] or nv["node_id"] != v["node_id"] or (nv["enabled"] and not v["enabled"]):
-            await port_guard(nv["node_id"], nv["port"], vid, bool(d.get("force")))
+        if (nv["port"] != v["port"] or nv["node_id"] != v["node_id"] or nv["protocol"] != (v.get("protocol") or "vless")
+                or (nv["enabled"] and not v["enabled"])):
+            await port_guard(nv["node_id"], nv["port"], vid, bool(d.get("force")), nv["protocol"])
         ex("""UPDATE vpns SET name=?,node_id=?,port=?,transport=?,sni=?,dest=?,fingerprint=?,path=?,
-              service_name=?,enabled=?,sort=? WHERE id=?""",
+              service_name=?,enabled=?,sort=?,protocol=? WHERE id=?""",
            (nv["name"], nv["node_id"], nv["port"], nv["transport"], nv["sni"], nv["dest"], nv["fingerprint"],
-            nv["path"], nv["service_name"], nv["enabled"], nv["sort"], vid))
-        if d.get("regen_keys"):
-            priv, pub = core.reality_keypair()
-            ex("UPDATE vpns SET private_key=?, public_key=?, short_id=? WHERE id=?",
-               (priv, pub, secrets.token_hex(4), vid))
+            nv["path"], nv["service_name"], nv["enabled"], nv["sort"], nv["protocol"], vid))
+        vpn_secrets(vid, nv, regen=bool(d.get("regen_keys")))
         request_sync()
     return ok(vpn_out(q1("SELECT * FROM vpns WHERE id=?", (vid,))))
 
@@ -1068,6 +1107,7 @@ async def node_update(request: Request):
 async def updates_overview(request: Request):
     force = request.query_params.get("force") == "1"
     st = await asyncio.to_thread(update.check) if force or not update.STATE["checked_at"] else update.state()
+    st = {**st, "error": tr(st.get("error", ""))}
     rel = await asyncio.to_thread(update.releases, force)
     pv = panel_versions()
     items = []

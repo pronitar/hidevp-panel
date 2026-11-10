@@ -74,6 +74,41 @@ def reality_keypair() -> tuple[str, str]:
     return b64u(priv), b64u(pub)
 
 
+PROTOCOLS = ("vless", "trojan", "ss", "hy2")
+REALITY_PROTOCOLS = ("vless", "trojan")
+SS_METHOD = "2022-blake3-aes-128-gcm"
+HY2_MIN_XRAY = "26.3.27"
+
+
+def ss_server_key() -> str:
+    return base64.b64encode(secrets.token_bytes(16)).decode()
+
+
+def ss_user_key(server_key: str, user_uuid: str) -> str:
+    return base64.b64encode(hmac.new(server_key.encode(), user_uuid.encode(), hashlib.sha256).digest()[:16]).decode()
+
+
+def self_signed_cert(name: str) -> tuple[str, str, str]:
+    import datetime
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import NameOID
+    key = ec.generate_private_key(ec.SECP256R1())
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)])
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cert = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject).public_key(key.public_key())
+            .serial_number(x509.random_serial_number()).not_valid_before(now - datetime.timedelta(days=1))
+            .not_valid_after(now + datetime.timedelta(days=3650))
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName(name)]), critical=False)
+            .sign(key, hashes.SHA256()))
+    cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode()
+    key_pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                serialization.NoEncryption()).decode()
+    pin = hashlib.sha256(cert.public_bytes(serialization.Encoding.DER)).hexdigest()
+    return cert_pem, key_pem, pin
+
+
 def user_status(u: dict, t: float | None = None) -> str:
     t = t or time.time()
     if not u["enabled"]:
@@ -139,29 +174,48 @@ def flag(cc: str) -> str:
     return "".join(chr(0x1F1E6 + ord(c) - 65) for c in cc)
 
 
-def vless_link(u: dict, vpn: dict, node: dict) -> str:
+def _host(node: dict) -> str:
     host = node["host"]
-    if ":" in host and not host.startswith("["):
-        host = f"[{host}]"
-    p = {"type": vpn["transport"], "security": "reality", "encryption": "none",
-         "pbk": vpn["public_key"], "fp": vpn["fingerprint"], "sni": vpn["sni"],
-         "sid": vpn["short_id"], "spx": "/"}
-    if vpn["transport"] == "tcp":
-        p["flow"] = "xtls-rprx-vision"
-    elif vpn["transport"] == "grpc":
+    return f"[{host}]" if ":" in host and not host.startswith("[") else host
+
+
+def _reality_params(vpn: dict) -> dict:
+    p = {"type": vpn["transport"], "security": "reality", "pbk": vpn["public_key"], "fp": vpn["fingerprint"],
+         "sni": vpn["sni"], "sid": vpn["short_id"], "spx": "/"}
+    if vpn["transport"] == "grpc":
         p["serviceName"] = vpn["service_name"] or "grpc"
         p["mode"] = "gun"
     elif vpn["transport"] == "xhttp":
         p["path"] = vpn["path"] or "/"
         p["mode"] = "auto"
-    title = f"{flag(node['country_code'])} {vpn['name']}"
-    return f"vless://{u['uuid']}@{host}:{vpn['port']}?{urlencode(p, quote_via=quote)}#{quote(title)}"
+    return p
+
+
+def vpn_link(u: dict, vpn: dict, node: dict) -> str:
+    proto = vpn.get("protocol") or "vless"
+    host, port = _host(node), vpn["port"]
+    title = quote(f"{flag(node['country_code'])} {vpn['name']}")
+    if proto == "trojan":
+        return f"trojan://{quote(u['uuid'])}@{host}:{port}?{urlencode(_reality_params(vpn), quote_via=quote)}#{title}"
+    if proto == "ss":
+        password = f"{vpn['server_key']}:{ss_user_key(vpn['server_key'], u['uuid'])}"
+        info = base64.urlsafe_b64encode(f"{SS_METHOD}:{password}".encode()).decode().rstrip("=")
+        return f"ss://{info}@{host}:{port}#{title}"
+    if proto == "hy2":
+        p = {"sni": vpn["sni"], "insecure": "1", "pinSHA256": vpn["cert_pin"]}
+        if vpn.get("obfs"):
+            p.update({"obfs": "salamander", "obfs-password": vpn["obfs"]})
+        return f"hy2://{quote(u['uuid'])}@{host}:{port}/?{urlencode(p, quote_via=quote)}#{title}"
+    p = {"encryption": "none", **_reality_params(vpn)}
+    if vpn["transport"] == "tcp":
+        p["flow"] = "xtls-rprx-vision"
+    return f"vless://{u['uuid']}@{host}:{port}?{urlencode(p, quote_via=quote)}#{title}"
 
 
 def user_links(u: dict) -> list[str]:
     rows = q("""SELECT v.*, n.host AS n_host, n.country_code AS n_cc FROM vpns v
                 JOIN nodes n ON n.id=v.node_id WHERE v.enabled=1 ORDER BY v.sort, v.id""")
-    return [vless_link(u, r, {"host": r["n_host"], "country_code": r["n_cc"]}) for r in rows]
+    return [vpn_link(u, r, {"host": r["n_host"], "country_code": r["n_cc"]}) for r in rows]
 
 
 def fmt_bytes(n: int) -> str:

@@ -21,7 +21,7 @@
 - 🤖 **Telegram bot for users.** Built in and configured right in the panel: sign-up, payment, renewal, promo codes, notices.
 - 💳 **Subscription payments.** Telegram Stars, cryptocurrency (CryptoBot), bank card and bank transfer.
 
-Users connect with **Happ** or **INCY** using a subscription link or their personal page.
+Protocols: VLESS and Trojan with Reality disguise, Shadowsocks-2022 and Hysteria2. Users connect with **Happ** or **INCY** using a subscription link or their personal page.
 
 ```
             ┌──────────────────── master ────────────────────┐
@@ -35,12 +35,21 @@ Users connect with **Happ** or **INCY** using a subscription link or their perso
           └──────────────┘             └──────────────┘
 ```
 
-**Protocol:** VLESS + Reality (disguised as a real website, no own domain or certificate needed). Transports: TCP + Vision, XHTTP, gRPC.
+**Protocols** (all work in Happ and INCY):
+
+| Protocol | Disguise | Port | When to choose |
+|---|---|---|---|
+| VLESS + Reality (TCP + Vision, XHTTP, gRPC) | as a real website, no own domain or certificate | TCP | the main option |
+| Trojan + Reality (TCP, XHTTP, gRPC) | same as VLESS | TCP | a fallback with the same disguise |
+| Shadowsocks-2022 | none, traffic looks like random data | TCP and UDP | simple and fast, for countries without strict blocking |
+| Hysteria2 | as an HTTP/3 website; optional Salamander obfuscation | UDP | high speed on poor and mobile networks |
+
+Hysteria2 needs Xray 26.3.27 or newer on the node — the installer sets up the latest version.
 
 ## Features
 
 - **Servers.** Connect a node with a `NODE-…` key; country flag, panel versions, CPU/memory/disk load; a "Check" button (Xray, ports, firewall, camouflage site, internet access, clock).
-- **VPN connections.** Several connections per server. A free port is filled in automatically; the panel checks that the port is free and reachable from outside.
+- **VPN connections.** VLESS, Trojan, Shadowsocks-2022 and Hysteria2, several connections per server. A free port is filled in automatically; the panel checks that the port is free and reachable from outside. Keys and certificates are created automatically.
 - **Users.** Fixed-term or unlimited subscription, traffic and device limits, torrent blocking, traffic reset, link reissue (users can also do it themselves in the bot), Telegram messages, payment history. The subscription link works in Happ and INCY.
 - **Plans & payments.** Terms from 1 to 24 months. Prices in Telegram Stars and in a currency (₽, $, €, ₸, ₴, Br). Methods: Telegram Stars, card (Telegram payment provider), CryptoBot, bank transfer confirmed by the administrator with unique payment codes.
 - **Promo codes.** 1–100 % discount, plans, validity period, usage limit, single-use or multi-use, new users only.
@@ -97,7 +106,7 @@ If the master is installed with a domain and the same server will run a VPN, por
 ### 4. First setup
 
 1. **Servers → Connect server** — paste the `NODE-…` key of each node.
-2. **VPN → Create** — choose a server and a transport; the port is filled in automatically.
+2. **VPN → Create** — choose a server, a protocol and a transport; the port is filled in automatically.
 3. **Telegram bot** — the token from @BotFather, link administrators ("Link my Telegram" button). If the master is in Russia: "Telegram connection" → "Via a connected server" and pick a foreign node.
 4. **Plans & payments** — terms, prices and payment methods.
 5. **Settings** — service name, public address, support contact, default limits.
@@ -111,7 +120,7 @@ If the master is installed with a domain and the same server will run a VPN, por
 | master | 80 and 443 | with a domain: website, admin panel, subscriptions |
 | master | from installation | without a domain: website, admin panel, subscriptions |
 | node | from installation | work panel API (key access only) |
-| node | your VPN ports (443, 8443…) | VPN traffic |
+| node | your VPN ports (443, 8443…) | VPN traffic: TCP; UDP for Hysteria2, TCP and UDP for Shadowsocks |
 
 If your hosting provider has an external firewall (security groups), open these ports there. The installers and the panel open ports in `ufw` themselves.
 
@@ -232,7 +241,7 @@ Start with **Servers → Check**: it shows the cause of most VPN problems.
 | Server is "Offline" | On the node: `systemctl status hidevp-node`; check that the API port is open at the hosting provider. Cards open instantly; each server's data loads separately |
 | "Port is used by another program" | Usually an old x-ui: `x-ui stop && systemctl disable x-ui`, then "Reload panel". Or choose another port |
 | Xray does not start | The error is shown on the server card; `hidevp` → Xray → fix permissions or reinstall |
-| The app connects but there is no internet | "Check" on the server; refresh the subscription in the app, try XHTTP, another port or another camouflage site |
+| The app connects but there is no internet | "Check" on the server; refresh the subscription in the app, try XHTTP, another protocol (e.g. Hysteria2), another port or camouflage site |
 | The bot is silent, `timed out` when saving the token | Telegram is unreachable from the master: Telegram bot → "Via a connected server" or a proxy |
 | CryptoBot: error 403 or "invalid token" | Bot route "Via a connected server"; a @CryptoBot token — without the "Testnet" checkbox, a @CryptoTestnetBot token — with it |
 | An invoice is not created | Press pay in the bot yourself: the administrator sees the reason in the message |

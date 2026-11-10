@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -71,42 +71,124 @@ def run(cmd, timeout=30):
         return subprocess.CompletedProcess(cmd, 124, "", "timeout")
 
 
+XRAY_PROTOCOL = {"vless": "vless", "trojan": "trojan", "ss": "shadowsocks", "hy2": "hysteria"}
+SS_METHOD = "2022-blake3-aes-128-gcm"
+HY2_MIN_XRAY = (26, 3, 27)
+
+
+def xray_semver() -> tuple:
+    m = re.search(r"(\d+)\.(\d+)\.(\d+)", xray_version())
+    return tuple(int(x) for x in m.groups()) if m else (0, 0, 0)
+
+
+def hy2_supported() -> bool:
+    return xray_semver() >= HY2_MIN_XRAY
+
+
+def ss_user_key(server_key: str, user_uuid: str) -> str:
+    return base64.b64encode(hmac.new(server_key.encode(), user_uuid.encode(), hashlib.sha256).digest()[:16]).decode()
+
+
+def inbound_settings(ib: dict, ids: list[tuple[str, str]]) -> dict:
+    proto = ib.get("protocol") or "vless"
+    if proto == "trojan":
+        return {"clients": [{"password": uid, "email": e} for e, uid in ids]}
+    if proto == "ss":
+        return {"method": SS_METHOD, "password": ib["server_key"], "network": "tcp,udp",
+                "clients": [{"password": ss_user_key(ib["server_key"], uid), "email": e} for e, uid in ids]}
+    if proto == "hy2":
+        return {"version": 2, "clients": [{"auth": uid, "email": e} for e, uid in ids]}
+    flow = "xtls-rprx-vision" if ib.get("transport", "tcp") == "tcp" else ""
+    return {"clients": [{"id": uid, "email": e, **({"flow": flow} if flow else {})} for e, uid in ids],
+            "decryption": "none"}
+
+
+def _transport(stream: dict, ib: dict) -> dict:
+    t = ib.get("transport") or "tcp"
+    if t == "grpc":
+        stream["grpcSettings"] = {"serviceName": ib.get("service_name") or "grpc"}
+    elif t == "xhttp":
+        stream["xhttpSettings"] = {"path": ib.get("path") or "/", "mode": "auto"}
+    return stream
+
+
+def _hy2_extra(stream: dict, ib: dict) -> dict:
+    if ib.get("obfs"):
+        stream["finalmask"] = {"udp": [{"type": "salamander", "settings": {"password": ib["obfs"]}}]}
+    return stream
+
+
+def server_stream(ib: dict) -> dict:
+    if (ib.get("protocol") or "vless") == "hy2":
+        return _hy2_extra({
+            "network": "hysteria", "security": "tls",
+            "tlsSettings": {"alpn": ["h3"], "certificates": [{"certificate": ib["cert_pem"].strip().splitlines(),
+                                                              "key": ib["key_pem"].strip().splitlines()}]},
+            "hysteriaSettings": {"version": 2, "masquerade": {"type": "proxy", "url": f"https://{ib['sni']}",
+                                                              "rewriteHost": True}},
+        }, ib)
+    return _transport({
+        "network": ib.get("transport") or "tcp", "security": "reality",
+        "realitySettings": {"show": False, "dest": ib["dest"], "xver": 0, "serverNames": [ib["sni"]],
+                            "privateKey": ib["private_key"], "shortIds": [ib["short_id"]]},
+    }, ib)
+
+
+def client_outbound(ib: dict, uid: str, host: str = "127.0.0.1") -> dict:
+    proto = ib.get("protocol") or "vless"
+    port = int(ib["port"])
+    if proto == "ss":
+        return {"protocol": "shadowsocks", "settings": {"servers": [{
+            "address": host, "port": port, "method": SS_METHOD,
+            "password": f"{ib['server_key']}:{ss_user_key(ib['server_key'], uid)}"}]}}
+    if proto == "hy2":
+        return {"protocol": "hysteria", "settings": {"version": 2, "address": host, "port": port},
+                "streamSettings": _hy2_extra({
+                    "network": "hysteria", "security": "tls",
+                    "tlsSettings": {"serverName": ib["sni"], "alpn": ["h3"],
+                                    "pinnedPeerCertSha256": hashlib.sha256(_pem_der(ib["cert_pem"])).hexdigest()},
+                    "hysteriaSettings": {"version": 2, "auth": uid}}, ib)}
+    stream = _transport({"network": ib.get("transport") or "tcp", "security": "reality",
+                         "realitySettings": {"serverName": ib["sni"], "fingerprint": "chrome",
+                                             "publicKey": ib["public_key"], "shortId": ib["short_id"],
+                                             "spiderX": "/"}}, ib)
+    if proto == "trojan":
+        return {"protocol": "trojan", "settings": {"servers": [{"address": host, "port": port, "password": uid}]},
+                "streamSettings": stream}
+    user = {"id": uid, "encryption": "none"}
+    if (ib.get("transport") or "tcp") == "tcp":
+        user["flow"] = "xtls-rprx-vision"
+    return {"protocol": "vless", "settings": {"vnext": [{"address": host, "port": port, "users": [user]}]},
+            "streamSettings": stream}
+
+
+def _pem_der(pem: str) -> bytes:
+    body = "".join(line for line in pem.strip().splitlines() if not line.startswith("-----"))
+    return base64.b64decode(body)
+
+
+def port_protos(ib: dict) -> list[str]:
+    proto = ib.get("protocol") or "vless"
+    return ["udp"] if proto == "hy2" else (["tcp", "udp"] if proto == "ss" else ["tcp"])
+
+
 def build_config(state: dict) -> dict:
     users = state.get("users", [])
     inbounds = [{
         "tag": "api", "listen": "127.0.0.1", "port": API_PORT,
         "protocol": "dokodemo-door", "settings": {"address": "127.0.0.1"},
     }]
+    hy2 = hy2_supported()
     for ib in state.get("inbounds", []):
-        transport = ib.get("transport", "tcp")
-        flow = "xtls-rprx-vision" if transport == "tcp" else ""
-        clients = [{"id": diag_uuid(), "email": "diag", **({"flow": flow} if flow else {})}]
-        for u in users:
-            c = {"id": u["uuid"], "email": u["email"]}
-            if flow:
-                c["flow"] = flow
-            clients.append(c)
-        stream = {
-            "network": transport,
-            "security": "reality",
-            "realitySettings": {
-                "show": False,
-                "dest": ib["dest"],
-                "xver": 0,
-                "serverNames": [ib["sni"]],
-                "privateKey": ib["private_key"],
-                "shortIds": [ib["short_id"]],
-            },
-        }
-        if transport == "grpc":
-            stream["grpcSettings"] = {"serviceName": ib.get("service_name") or "grpc"}
-        elif transport == "xhttp":
-            stream["xhttpSettings"] = {"path": ib.get("path") or "/", "mode": "auto"}
+        proto = ib.get("protocol") or "vless"
+        if proto == "hy2" and not hy2:
+            continue
+        ids = [("diag", diag_uuid())] + [(u["email"], u["uuid"]) for u in users]
         inbounds.append({
             "tag": f"in-{ib['id']}", "listen": "0.0.0.0", "port": int(ib["port"]),
-            "protocol": "vless",
-            "settings": {"clients": clients, "decryption": "none"},
-            "streamSettings": stream,
+            "protocol": XRAY_PROTOCOL[proto],
+            "settings": inbound_settings(ib, ids),
+            **({"streamSettings": server_stream(ib)} if proto != "ss" else {}),
             "sniffing": {"enabled": True, "destOverride": ["http", "tls", "quic"]},
         })
 
@@ -216,14 +298,19 @@ def ensure_log_perms():
             pass
 
 
+def ufw_allowed(status: str, port: int, proto: str = "tcp") -> bool:
+    return re.search(rf"^{int(port)}(/{proto})?\s+ALLOW", status, re.M) is not None
+
+
 def ufw_allow(ports) -> list[int]:
     st = run(["ufw", "status"])
     if st.returncode != 0 or "Status: active" not in st.stdout:
         return []
     opened = []
-    for p in ports:
-        if not re.search(rf"^{int(p)}(/tcp)?\s+ALLOW", st.stdout, re.M):
-            if run(["ufw", "allow", f"{int(p)}/tcp"]).returncode == 0:
+    for item in ports:
+        p, proto = (item, "tcp") if isinstance(item, int) or str(item).isdigit() else item
+        if not ufw_allowed(st.stdout, int(p), proto):
+            if run(["ufw", "allow", f"{int(p)}/{proto}"]).returncode == 0:
                 opened.append(int(p))
     return opened
 
@@ -332,12 +419,12 @@ def apply_state(state: dict) -> dict:
     os.replace(tmp, XRAY_CONFIG)
     HASH_FILE.write_text(digest)
     ensure_log_perms()
-    ufw_allow([i["port"] for i in state.get("inbounds", [])])
+    ufw_allow([(int(i["port"]), pr) for i in state.get("inbounds", []) for pr in port_protos(i)])
     run(["systemctl", "restart", XRAY_SERVICE])
     time.sleep(1.5)
     if not xray_running():
         tail = run(["journalctl", "-u", XRAY_SERVICE, "-n", "15", "--no-pager", "-o", "cat"]).stdout
-        busy = [f"{p} ({who})" for p, who in _port_owners().items()
+        busy = [f"{p} ({who})" for p, who in {**_port_owners("udp"), **_port_owners()}.items()
                 if p in {int(i["port"]) for i in state.get("inbounds", [])} and "xray" != who]
         msg = "Xray не запустился после применения настроек."
         if busy:
@@ -357,8 +444,8 @@ def _check(name, ok, detail="", hint="", warn=False):
     return {"name": name, "status": "ok" if ok else ("warn" if warn else "fail"), "detail": detail, "hint": hint}
 
 
-def _port_owners() -> dict[int, str]:
-    r = run(["ss", "-ltnpH"])
+def _port_owners(proto: str = "tcp") -> dict[int, str]:
+    r = run(["ss", "-lunpH" if proto == "udp" else "-ltnpH"])
     owners = {}
     for line in r.stdout.splitlines():
         parts = line.split()
@@ -390,25 +477,13 @@ def _free_port() -> int:
 
 
 def _selftest(ib: dict) -> tuple[bool, str]:
-    if not ib.get("public_key"):
+    proto = ib.get("protocol") or "vless"
+    if proto in ("vless", "trojan") and not ib.get("public_key"):
         return False, L("нет публичного ключа (обновите master-панель)", "no public key (update the master panel)")
     port = _free_port()
-    transport = ib.get("transport", "tcp")
-    user = {"id": diag_uuid(), "encryption": "none"}
-    if transport == "tcp":
-        user["flow"] = "xtls-rprx-vision"
-    stream = {"network": transport, "security": "reality",
-              "realitySettings": {"serverName": ib["sni"], "fingerprint": "chrome",
-                                  "publicKey": ib["public_key"], "shortId": ib["short_id"], "spiderX": "/"}}
-    if transport == "grpc":
-        stream["grpcSettings"] = {"serviceName": ib.get("service_name") or "grpc"}
-    elif transport == "xhttp":
-        stream["xhttpSettings"] = {"path": ib.get("path") or "/", "mode": "auto"}
     cfg = {"log": {"loglevel": "warning"},
            "inbounds": [{"listen": "127.0.0.1", "port": port, "protocol": "socks", "settings": {"udp": False}}],
-           "outbounds": [{"protocol": "vless", "settings": {"vnext": [{"address": "127.0.0.1", "port": int(ib["port"]),
-                                                                        "users": [user]}]},
-                          "streamSettings": stream}]}
+           "outbounds": [client_outbound(ib, diag_uuid())]}
     path = DATA / f"selftest-{secrets.token_hex(3)}.json"
     path.write_text(json.dumps(cfg))
     proc = subprocess.Popen([XRAY_BIN, "run", "-c", str(path)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -478,12 +553,21 @@ def diagnose(lang: str = "ru") -> dict:
                            "The server has no internet access — check the hoster's network")))
 
     owners = _port_owners()
+    owners_udp = _port_owners("udp")
     ufw = run(["ufw", "status"])
     ufw_active = ufw.returncode == 0 and "Status: active" in ufw.stdout
+    names = {"vless": "VLESS", "trojan": "Trojan", "ss": "Shadowsocks", "hy2": "Hysteria2"}
     for ib in inbounds:
         p = int(ib["port"])
-        label = L(f"порт {p}", f"port {p}") + f" ({ib.get('transport', 'tcp')}, {ib['sni']})"
-        who = owners.get(p)
+        proto = ib.get("protocol") or "vless"
+        desc = names[proto] + (f" {ib.get('transport') or 'tcp'}" if proto in ("vless", "trojan") else "")
+        label = L(f"порт {p}", f"port {p}") + f" ({desc}{', ' + ib['sni'] if ib.get('sni') else ''})"
+        if proto == "hy2" and not hy2_supported():
+            checks.append(_check(L(f"Hysteria2 на {label}", f"Hysteria2 on {label}"), False,
+                                 L(f"нужен Xray {'.'.join(map(str, HY2_MIN_XRAY))} или новее", f"needs Xray {'.'.join(map(str, HY2_MIN_XRAY))} or newer"),
+                                 L("Обновите Xray: hidevp → Xray → Переустановить", "Update Xray: hidevp → Xray → Reinstall")))
+            continue
+        who = (owners_udp if proto == "hy2" else owners).get(p)
         if who is None:
             checks.append(_check(L(f"Xray слушает {label}", f"Xray listens on {label}"), False,
                                  L("порт никто не слушает", "nothing listens on the port"),
@@ -497,13 +581,15 @@ def diagnose(lang: str = "ru") -> dict:
                                    "The port is used by another program (x-ui, nginx…). Stop it "
                                    "(for x-ui: x-ui stop; systemctl disable x-ui) or choose another port for this VPN")))
         if ufw_active:
-            allowed = re.search(rf"^{p}(/tcp)?\s+ALLOW", ufw.stdout, re.M) is not None
-            checks.append(_check(L(f"Фаервол ufw пропускает порт {p}", f"ufw firewall allows port {p}"), allowed, "",
-                                 L(f"Выполните на сервере: ufw allow {p}/tcp", f"Run on the server: ufw allow {p}/tcp")))
-        ok, d = _tls_probe(ib["sni"])
-        checks.append(_check(L(f"Сайт-маскировка {ib['sni']} доступен (TLS 1.3)", f"Camouflage site {ib['sni']} is reachable (TLS 1.3)"), ok, d,
-                             L("Выберите другой сайт для маскировки (SNI) в настройках VPN",
-                               "Choose another camouflage site (SNI) in the VPN settings")))
+            for pr in port_protos(ib):
+                checks.append(_check(L(f"Фаервол ufw пропускает порт {p}/{pr}", f"ufw firewall allows port {p}/{pr}"),
+                                     ufw_allowed(ufw.stdout, p, pr), "",
+                                     L(f"Выполните на сервере: ufw allow {p}/{pr}", f"Run on the server: ufw allow {p}/{pr}")))
+        if ib.get("sni"):
+            ok, d = _tls_probe(ib["sni"])
+            checks.append(_check(L(f"Сайт-маскировка {ib['sni']} доступен (TLS 1.3)", f"Camouflage site {ib['sni']} is reachable (TLS 1.3)"), ok, d,
+                                 L("Выберите другой сайт для маскировки (SNI) в настройках VPN",
+                                   "Choose another camouflage site (SNI) in the VPN settings")))
         ok, d = _selftest(ib) if running else (False, L("Xray не запущен", "Xray is not running"))
         checks.append(_check(L(f"Самопроверка VPN на {label}: выход в интернет через туннель",
                                f"VPN self-test on {label}: internet through the tunnel"), ok, d,
@@ -513,7 +599,7 @@ def diagnose(lang: str = "ru") -> dict:
 
 
 def sysinfo() -> dict:
-    info = {"version": VERSION, "xray": xray_version(), "xray_running": xray_running(),
+    info = {"version": VERSION, "xray": xray_version(), "xray_running": xray_running(), "hy2": hy2_supported(),
             "cpus": os.cpu_count(),
             "busy_ports": {str(p): who for p, who in _port_owners().items() if who not in ("xray", "?") and p not in TEMP}}
     try:

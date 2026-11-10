@@ -17,6 +17,7 @@ EXACT = {
     "Порт должен быть от 1 до 65535": "Port must be between 1 and 65535",
     "Этот порт занят work-панелью сервера": "This port is used by the server's work panel",
     "Неизвестный транспорт": "Unknown transport",
+    "Неизвестный протокол": "Unknown protocol",
     "Неизвестный отпечаток": "Unknown fingerprint",
     "Укажите домен для маскировки": "Enter a camouflage domain (SNI)",
     "VPN не найден": "VPN not found",
@@ -107,6 +108,10 @@ EXACT = {
 }
 
 PATTERNS = [
+    (r"^Протокол (\S+) требует work-панель 1\.1\.0 или новее — обновите её в разделе «Обновления»$",
+     r"The \1 protocol requires work panel 1.1.0 or newer — update it in the Updates section"),
+    (r"^Hysteria2 требует Xray ([\d.]+) или новее \(на сервере ([\d.]+)\) — обновите Xray: hidevp → Xray → Переустановить$",
+     r"Hysteria2 requires Xray \1 or newer (the server has \2) — update Xray: hidevp → Xray → Reinstall"),
     (r"^Неверный код\. Осталось попыток: (\d+)$", r"Wrong code. Attempts left: \1"),
     (r"^Порт (\d+) занят: VPN «(.*)»$", r"Port \1 is used by VPN “\2”"),
     (r"^Порт (\d+) занят: work-панель$", r"Port \1 is used by the work panel"),

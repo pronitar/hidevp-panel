@@ -31,11 +31,25 @@ def mark(node, status, error=""):
         ex("UPDATE nodes SET status=?, error=? WHERE id=?", (status, error[:500], node["id"]))
 
 
+INBOUND_KEYS = ("id", "port", "transport", "sni", "dest", "private_key", "public_key", "short_id", "path",
+                "service_name", "protocol", "server_key", "obfs", "cert_pem", "key_pem")
+
+
+def _agent_ok(node, need: str) -> bool:
+    v = (json.loads(node.get("info") or "{}").get("version") or "0").split(".")
+    try:
+        return tuple(int(x) for x in v) >= tuple(int(x) for x in need.split("."))
+    except ValueError:
+        return False
+
+
 def desired_state(node, users) -> dict:
     vpns = q("SELECT * FROM vpns WHERE node_id=? AND enabled=1", (node["id"],))
+    if not _agent_ok(node, "1.1.0"):
+        vpns = [v for v in vpns if (v.get("protocol") or "vless") == "vless"]
     return {
-        "inbounds": [{k: v[k] for k in ("id", "port", "transport", "sni", "dest", "private_key", "public_key",
-                                         "short_id", "path", "service_name")} for v in vpns],
+        "inbounds": [{k: (v.get(k) or ("vless" if k == "protocol" else "")) if k not in ("id", "port") else v[k]
+                      for k in INBOUND_KEYS} for v in vpns],
         "users": [{"email": f"u{u['id']}", "uuid": u["uuid"], "block_torrent": bool(u["block_torrent"])}
                   for u in users],
     }

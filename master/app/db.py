@@ -117,6 +117,12 @@ MIGRATIONS = [
     ("manual_payments", "code", "ALTER TABLE manual_payments ADD COLUMN code TEXT DEFAULT ''"),
     ("payments", "currency", "ALTER TABLE payments ADD COLUMN currency TEXT DEFAULT 'XTR'"),
     ("promo_uses", "currency", "ALTER TABLE promo_uses ADD COLUMN currency TEXT DEFAULT 'XTR'"),
+    ("vpns", "protocol", "ALTER TABLE vpns ADD COLUMN protocol TEXT DEFAULT 'vless'"),
+    ("vpns", "server_key", "ALTER TABLE vpns ADD COLUMN server_key TEXT DEFAULT ''"),
+    ("vpns", "obfs", "ALTER TABLE vpns ADD COLUMN obfs TEXT DEFAULT ''"),
+    ("vpns", "cert_pem", "ALTER TABLE vpns ADD COLUMN cert_pem TEXT DEFAULT ''"),
+    ("vpns", "key_pem", "ALTER TABLE vpns ADD COLUMN key_pem TEXT DEFAULT ''"),
+    ("vpns", "cert_pin", "ALTER TABLE vpns ADD COLUMN cert_pin TEXT DEFAULT ''"),
 ]
 
 
