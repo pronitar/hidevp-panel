@@ -163,6 +163,7 @@ New versions are published only in [GitHub releases](https://github.com/pronitar
 **Admin panel → "Updates":**
 - **Master panel** — the "Update master panel to …" button. The panel restarts in about a minute; a work panel on the same server is updated together with it.
 - **Servers** — the work panel version on each server and an "Update to …" button. VPN clients stay connected.
+- **Installation progress** is shown step by step with a log in a separate window; the rest of the admin panel is locked while it runs. If a master panel update fails, the previous version is restored automatically.
 - **Rollback** — "Roll back…" for the master panel and "Other version…" for a server. Rollback is at your own risk: an older version may not support data from a newer one. The database is backed up automatically before a master panel rollback.
 
 **Console:** `hidevp` → "Update the panel". The menu shows the versions on the server and finds an available one: an archive in `/root`, otherwise the latest from GitHub. If it is newer, the menu offers to update. If it is the same, it says "You have the latest version". If it is older, it warns about the risks and asks you to type the word `rollback`.

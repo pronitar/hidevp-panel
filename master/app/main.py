@@ -1104,6 +1104,17 @@ async def node_update(request: Request):
     return ok({"started": True, "version": payload["version"], **(r or {})})
 
 
+async def node_update_log(request: Request):
+    n = q1("SELECT * FROM nodes WHERE id=?", (int(request.path_params["id"]),))
+    if not n:
+        raise ApiError("Сервер не найден", 404)
+    try:
+        r = await nodes.call(n, "GET", "/api/update-log", timeout=8)
+        return ok({"log": (r or {}).get("log", ""), "version": (r or {}).get("version", ""), "reachable": True})
+    except nodes.NodeError as e:
+        return ok({"log": "", "version": "", "reachable": False, "error": str(e)})
+
+
 async def updates_overview(request: Request):
     force = request.query_params.get("force") == "1"
     st = await asyncio.to_thread(update.check) if force or not update.STATE["checked_at"] else update.state()
@@ -1417,6 +1428,7 @@ def build_app() -> Starlette:
         Route(base + "/api/nodes/{id:int}", api(node_one), methods=["GET", "PATCH", "DELETE"]),
         Route(base + "/api/nodes/{id:int}/diag", api(node_diag), methods=["POST"]),
         Route(base + "/api/nodes/{id:int}/update", api(node_update), methods=["POST"]),
+        Route(base + "/api/nodes/{id:int}/update-log", api(node_update_log)),
         Route(base + "/api/nodes/{id:int}/{action}", api(node_action), methods=["POST"]),
         Route(base + "/api/reload", api(reload_all), methods=["POST"]),
         Route(base + "/api/vpns", api(vpns_list), methods=["GET", "POST"]),

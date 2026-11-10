@@ -327,8 +327,11 @@ def start_master_update(version: str | None = None, rollback: bool = False) -> d
     lang = "en" if lf.exists() and lf.read_text().strip() == "en" else "ru"
     node = (f"HV_LANG={lang} bash install-node.sh </dev/null >> {UPDATE_LOG} 2>&1; "
             if (APP_DIR.parents[1] / "node" / "agent.py").exists() else "")
+    store = APP_DIR.parents[1] / "src"
     script = (f"cd {src} && : > {UPDATE_LOG} && {node}HV_LANG={lang} DOMAIN= bash install-master.sh </dev/null >> {UPDATE_LOG} 2>&1; "
-              f"rm -rf {tmp}")
+              f"rc=$?; if [ $rc -ne 0 ] && [ -f {store}/install-master.sh ]; then echo __HV_RESTORE__ >> {UPDATE_LOG}; "
+              f"(cd {store} && HV_LANG={lang} DOMAIN= bash install-master.sh </dev/null >> {UPDATE_LOG} 2>&1) "
+              f"&& echo __HV_RESTORED__ >> {UPDATE_LOG}; fi; echo \"__HV_DONE__ $rc\" >> {UPDATE_LOG}; rm -rf {tmp}")
     r = subprocess.run(["systemd-run", "--unit", f"hidevp-update-{int(time.time())}", "--collect",
                         "--property=Type=oneshot", "bash", "-c", script], capture_output=True, text=True)
     if r.returncode != 0:
@@ -356,7 +359,7 @@ def agent_payload(version: str | None = None) -> dict:
             "version": mm.group(1) if mm else ""}
 
 
-def read_log(lines=40) -> str:
+def read_log(lines=60) -> str:
     try:
         return "\n".join(UPDATE_LOG.read_text(errors="ignore").splitlines()[-lines:])
     except OSError:

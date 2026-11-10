@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -845,13 +845,23 @@ def self_update(data_b64: str, sha: str) -> dict:
         raise
     lf = Path("/opt/hidevp-panel/lang")
     lang = "en" if lf.exists() and lf.read_text().strip() == "en" else "ru"
-    script = f"cd {src} && HV_LANG={lang} bash install-node.sh </dev/null > {UPDATE_LOG} 2>&1; rm -rf {tmp}"
+    script = (f"cd {src} && HV_LANG={lang} bash install-node.sh </dev/null > {UPDATE_LOG} 2>&1; "
+              f"echo \"__HV_DONE__ $?\" >> {UPDATE_LOG}; rm -rf {tmp}")
     r = run(["systemd-run", "--unit", f"hidevp-node-update-{int(time.time())}", "--collect",
              "--property=Type=oneshot", "bash", "-c", script])
     if r.returncode != 0:
         shutil.rmtree(tmp, ignore_errors=True)
         raise ValueError("не удалось запустить обновление: " + (r.stderr or r.stdout).strip()[-300:])
     return {"ok": True, "started": True, "version": ver}
+
+
+@guard
+async def update_log(request):
+    try:
+        text = Path(UPDATE_LOG).read_text(errors="ignore")
+    except OSError:
+        text = ""
+    return JSONResponse({"log": "\n".join(text.splitlines()[-60:]), "version": VERSION})
 
 
 @guard
@@ -887,6 +897,7 @@ async def lifespan(app):
 
 app = Starlette(routes=[
     Route("/api/ping", ping),
+    Route("/api/update-log", update_log),
     Route("/api/info", info),
     Route("/api/state", put_state, methods=["PUT"]),
     Route("/api/stats", stats),
