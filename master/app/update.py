@@ -52,8 +52,10 @@ def root_dir() -> Path:
 
 
 def installed_version() -> str:
-    p = root_dir() / "VERSION"
-    return p.read_text().strip() if p.exists() else "0"
+    for p in (APP_DIR.parents[1] / "src" / "VERSION", APP_DIR.parent / "VERSION", APP_DIR.parents[1] / "VERSION"):
+        if p.exists() and p.read_text().strip():
+            return p.read_text().strip()
+    return "0"
 
 
 def _canon(manifest: dict) -> bytes:
@@ -336,7 +338,8 @@ def start_master_update(version: str | None = None, rollback: bool = False) -> d
                         "--property=Type=oneshot", "bash", "-c", script], capture_output=True, text=True)
     if r.returncode != 0:
         shutil.rmtree(tmp, ignore_errors=True)
-        raise UpdateError("Не удалось запустить обновление: " + (r.stderr or r.stdout).strip()[-300:])
+        raise UpdateError(f"Не удалось запустить обновление (systemd-run, код {r.returncode}): "
+                          + ((r.stderr or "") + (r.stdout or "")).strip()[-300:])
     STATE.update(updating=version, updating_since=time.time())
     return {"started": True, "version": version}
 

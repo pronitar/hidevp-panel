@@ -1086,6 +1086,8 @@ async def node_update(request: Request):
     info = json.loads(n.get("info") or "{}")
     if not info.get("version"):
         raise ApiError("Нет связи с work-панелью — нажмите «Обновить» на карточке сервера")
+    if update.STATE.get("updating") and node_out(n)["is_master"]:
+        raise ApiError("Идёт обновление master-панели — work-панель на этом сервере обновится вместе с ней")
     d = await body(request)
     version, rollback = str(d.get("version") or "") or None, bool(d.get("rollback"))
     try:

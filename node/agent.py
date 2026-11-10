@@ -851,7 +851,8 @@ def self_update(data_b64: str, sha: str) -> dict:
              "--property=Type=oneshot", "bash", "-c", script])
     if r.returncode != 0:
         shutil.rmtree(tmp, ignore_errors=True)
-        raise ValueError("не удалось запустить обновление: " + (r.stderr or r.stdout).strip()[-300:])
+        raise ValueError(f"не удалось запустить обновление (systemd-run, код {r.returncode}): "
+                         + ((r.stderr or "") + (r.stdout or "")).strip()[-300:])
     return {"ok": True, "started": True, "version": ver}
 
 

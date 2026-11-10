@@ -126,11 +126,16 @@ if [ "$(readlink -f "$SRC")" != "$STORE" ]; then
       --transform 's,^src,hidevp-panel,' src 2>/dev/null || true
     ls -1t /opt/hidevp-panel/rollback/hidevp-panel-*.tar.gz 2>/dev/null | tail -n +4 | xargs -r rm -f
   fi
-  rm -rf "$STORE"; mkdir -p "$STORE"
-  cp -r "$SRC/install-master.sh" "$SRC/install-node.sh" "$SRC/hidevp.sh" "$SRC/ports.sh" "$SRC/master" "$SRC/node" "$STORE/"
-  cp "$SRC/get.sh" "$SRC/verify_release.py" "$STORE/" 2>/dev/null || true
-  cp "$SRC/VERSION" "$SRC/README.md" "$STORE/" 2>/dev/null || true
-  find "$STORE" -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+  exec 9>/run/hidevp-store.lock; flock -w 600 9 || true
+  NEWSTORE=$(mktemp -d /opt/hidevp-panel/.src-new.XXXXXX)
+  cp -r "$SRC/install-master.sh" "$SRC/install-node.sh" "$SRC/hidevp.sh" "$SRC/ports.sh" "$SRC/master" "$SRC/node" "$NEWSTORE/"
+  cp "$SRC/get.sh" "$SRC/verify_release.py" "$NEWSTORE/" 2>/dev/null || true
+  cp "$SRC/VERSION" "$SRC/README.md" "$NEWSTORE/" 2>/dev/null || true
+  find "$NEWSTORE" -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+  chmod 755 "$NEWSTORE"
+  rm -rf "$STORE.old"; [ -e "$STORE" ] && mv "$STORE" "$STORE.old"
+  mv "$NEWSTORE" "$STORE"; rm -rf "$STORE.old" /opt/hidevp-panel/.src-new.*
+  flock -u 9 || true
 fi
 chmod +x "$STORE/hidevp.sh"
 ln -sf "$STORE/hidevp.sh" /usr/local/bin/hidevp
