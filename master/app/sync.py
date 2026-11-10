@@ -12,6 +12,8 @@ log = logging.getLogger("sync")
 
 INTERVAL = 60
 SUSPEND_SECONDS = 600
+OVER_GRACE = 150
+OVER_SINCE: dict[int, float] = {}
 LAST_RUN = {"at": 0.0, "took": 0.0}
 
 
@@ -102,8 +104,11 @@ async def sync_all():
             ex("UPDATE users SET online_ips=?, online_at=? WHERE id=?", (json.dumps(ips), now, u["id"]))
         elif u["online_ips"] != "[]":
             ex("UPDATE users SET online_ips='[]' WHERE id=?", (u["id"],))
-        if (u["device_limit"] and len(ips) > u["device_limit"]
-                and core.user_status(u, now) == "active"):
+        over = bool(u["device_limit"] and len(ips) > u["device_limit"] and core.user_status(u, now) == "active")
+        if not over:
+            OVER_SINCE.pop(u["id"], None)
+        elif now - OVER_SINCE.setdefault(u["id"], now) >= OVER_GRACE:
+            OVER_SINCE.pop(u["id"], None)
             ex("UPDATE users SET suspended_until=? WHERE id=?", (now + SUSPEND_SECONDS, u["id"]))
             en = core.user_lang(u) == "en"
             await bot.notify(u["tg_id"],

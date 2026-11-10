@@ -70,6 +70,7 @@ DEFAULT_SETTINGS = {
     "support": "",
     "default_traffic_limit_gb": "0",
     "default_device_limit": "0",
+    "auto_select": "0",
     "tg_route": "direct",
     "tg_node_id": "",
     "tg_proxy": "",

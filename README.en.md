@@ -49,7 +49,8 @@ Hysteria2 needs Xray 26.3.27 or newer on the node — the installer sets up the 
 ## Features
 
 - **Servers.** Connect a node with a `NODE-…` key; country flag, panel versions, CPU/memory/disk load; a "Check" button (Xray, ports, firewall, camouflage site, internet access, clock).
-- **VPN connections.** VLESS, Trojan, Shadowsocks-2022 and Hysteria2, several connections per server. A free port is filled in automatically; the panel checks that the port is free and reachable from outside. Keys and certificates are created automatically.
+- **VPN connections.** VLESS, Trojan, Shadowsocks-2022 and Hysteria2, several connections per server. A free port is filled in automatically; the panel checks that the port is free and reachable from outside. Keys and certificates are created automatically. Adding and removing users is applied on the fly without restarting Xray, so other users stay connected.
+- **Auto server selection.** One checkbox on the VPN page: Happ and INCY show "⚡ Auto" at the top of the list, which connects to the fastest available server and switches automatically when a server stops responding.
 - **Users.** Fixed-term or unlimited subscription, traffic and device limits, torrent blocking, traffic reset, link reissue (users can also do it themselves in the bot), Telegram messages, payment history. The subscription link works in Happ and INCY.
 - **Plans & payments.** Terms from 1 to 24 months. Prices in Telegram Stars and in a currency (₽, $, €, ₸, ₴, Br). Methods: Telegram Stars, card (Telegram payment provider), CryptoBot, bank transfer confirmed by the administrator with unique payment codes.
 - **Promo codes.** 1–100 % discount, plans, validity period, usage limit, single-use or multi-use, new users only.
@@ -241,6 +242,7 @@ Start with **Servers → Check**: it shows the cause of most VPN problems.
 | Server is "Offline" | On the node: `systemctl status hidevp-node`; check that the API port is open at the hosting provider. Cards open instantly; each server's data loads separately |
 | "Port is used by another program" | Usually an old x-ui: `x-ui stop && systemctl disable x-ui`, then "Reload panel". Or choose another port |
 | Xray does not start | The error is shown on the server card; `hidevp` → Xray → fix permissions or reinstall |
+| After a while the connection to all servers is lost | If "Check" is green and another network (Wi-Fi ↔ mobile) works, it's blocking on the provider side: try XHTTP, Hysteria2, another port, camouflage site or IP. If everyone drops at once, run `journalctl -u xray -u hidevp-node --since "1 hour ago"`, `df -h`, `free -m` on the node. Turn on "Auto server selection" so the app moves to a working server by itself |
 | The app connects but there is no internet | "Check" on the server; refresh the subscription in the app, try XHTTP, another protocol (e.g. Hysteria2), another port or camouflage site |
 | The bot is silent, `timed out` when saving the token | Telegram is unreachable from the master: Telegram bot → "Via a connected server" or a proxy |
 | CryptoBot: error 403 or "invalid token" | Bot route "Via a connected server"; a @CryptoBot token — without the "Testnet" checkbox, a @CryptoTestnetBot token — with it |

@@ -212,10 +212,104 @@ def vpn_link(u: dict, vpn: dict, node: dict) -> str:
     return f"vless://{u['uuid']}@{host}:{port}?{urlencode(p, quote_via=quote)}#{title}"
 
 
-def user_links(u: dict) -> list[str]:
-    rows = q("""SELECT v.*, n.host AS n_host, n.country_code AS n_cc FROM vpns v
+def _vpn_rows():
+    return q("""SELECT v.*, n.host AS n_host, n.country_code AS n_cc FROM vpns v
                 JOIN nodes n ON n.id=v.node_id WHERE v.enabled=1 ORDER BY v.sort, v.id""")
-    return [vpn_link(u, r, {"host": r["n_host"], "country_code": r["n_cc"]}) for r in rows]
+
+
+def user_links(u: dict) -> list[str]:
+    return [vpn_link(u, r, {"host": r["n_host"], "country_code": r["n_cc"]}) for r in _vpn_rows()]
+
+
+AUTO_PROBE = "https://www.gstatic.com/generate_204"
+
+
+def auto_select_on() -> bool:
+    return get_setting("auto_select", "0") == "1"
+
+
+def _client_stream(vpn: dict) -> dict:
+    t = vpn["transport"] or "tcp"
+    stream = {"network": t, "security": "reality",
+              "realitySettings": {"serverName": vpn["sni"], "fingerprint": vpn["fingerprint"] or "chrome",
+                                  "publicKey": vpn["public_key"], "shortId": vpn["short_id"], "spiderX": "/"}}
+    if t == "grpc":
+        stream["grpcSettings"] = {"serviceName": vpn["service_name"] or "grpc", "multiMode": False}
+    elif t == "xhttp":
+        stream["xhttpSettings"] = {"path": vpn["path"] or "/", "mode": "auto"}
+    return stream
+
+
+def client_outbound(u: dict, vpn: dict, host: str, tag: str) -> dict:
+    proto = vpn.get("protocol") or "vless"
+    port = int(vpn["port"])
+    if proto == "ss":
+        return {"tag": tag, "protocol": "shadowsocks", "settings": {"servers": [{
+            "address": host, "port": port, "method": SS_METHOD,
+            "password": f"{vpn['server_key']}:{ss_user_key(vpn['server_key'], u['uuid'])}"}]}}
+    if proto == "hy2":
+        stream = {"network": "hysteria", "security": "tls",
+                  "tlsSettings": {"serverName": vpn["sni"], "alpn": ["h3"],
+                                  "pinnedPeerCertSha256": vpn["cert_pin"]},
+                  "hysteriaSettings": {"version": 2, "auth": u["uuid"]}}
+        if vpn.get("obfs"):
+            stream["finalmask"] = {"udp": [{"type": "salamander", "settings": {"password": vpn["obfs"]}}]}
+        return {"tag": tag, "protocol": "hysteria", "settings": {"version": 2, "address": host, "port": port},
+                "streamSettings": stream}
+    if proto == "trojan":
+        return {"tag": tag, "protocol": "trojan",
+                "settings": {"servers": [{"address": host, "port": port, "password": u["uuid"]}]},
+                "streamSettings": _client_stream(vpn)}
+    user = {"id": u["uuid"], "encryption": "none"}
+    if (vpn["transport"] or "tcp") == "tcp":
+        user["flow"] = "xtls-rprx-vision"
+    return {"tag": tag, "protocol": "vless", "settings": {"vnext": [{"address": host, "port": port, "users": [user]}]},
+            "streamSettings": _client_stream(vpn)}
+
+
+def _client_config(remarks: str, proxies: list[dict], balanced: bool, description: str = "") -> dict:
+    rules = [{"type": "field", "ip": ["geoip:private"], "outboundTag": "direct"}]
+    cfg = {
+        "remarks": remarks,
+        "log": {"loglevel": "warning"},
+        "inbounds": [
+            {"tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks",
+             "settings": {"udp": True, "auth": "noauth"},
+             "sniffing": {"enabled": True, "destOverride": ["http", "tls", "quic"], "routeOnly": True}},
+            {"tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "settings": {}},
+        ],
+        "outbounds": proxies + [{"tag": "direct", "protocol": "freedom"},
+                                {"tag": "block", "protocol": "blackhole"}],
+        "routing": {"domainStrategy": "AsIs", "rules": rules},
+    }
+    if description:
+        cfg["meta"] = {"serverDescription": description}
+    if balanced:
+        cfg["burstObservatory"] = {"subjectSelector": ["proxy-"], "pingConfig": {
+            "destination": AUTO_PROBE, "connectivity": "", "interval": "1m", "sampling": 3, "timeout": "5s"}}
+        cfg["routing"]["balancers"] = [{"tag": "auto", "selector": ["proxy-"],
+                                        "strategy": {"type": "leastPing"}, "fallbackTag": proxies[0]["tag"]}]
+        rules.append({"type": "field", "network": "tcp,udp", "balancerTag": "auto"})
+        cfg["stats"] = {}
+    else:
+        rules.append({"type": "field", "network": "tcp,udp", "outboundTag": proxies[0]["tag"]})
+    return cfg
+
+
+def user_json(u: dict, lang: str = "ru") -> list[dict]:
+    rows = _vpn_rows()
+    out = []
+    auto = [r for r in rows if (r.get("protocol") or "vless") != "hy2"]
+    if auto and auto_select_on():
+        proxies = [client_outbound(u, r, _host({"host": r["n_host"]}).strip("[]"), f"proxy-{i + 1}")
+                   for i, r in enumerate(auto)]
+        out.append(_client_config("⚡ Auto" if lang == "en" else "⚡ Автовыбор", proxies, True,
+                                  "Fastest available server" if lang == "en" else "Самый быстрый доступный сервер"))
+    for r in rows:
+        name = f"{flag(r['n_cc'])} {r['name']}"
+        out.append(_client_config(name, [client_outbound(u, r, _host({"host": r["n_host"]}).strip("[]"), "proxy")],
+                                  False))
+    return out
 
 
 def fmt_bytes(n: int) -> str:

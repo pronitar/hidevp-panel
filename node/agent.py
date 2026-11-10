@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -36,6 +36,7 @@ ONLINE_WINDOW = 180
 
 STATE_FILE = DATA / "state.json"
 HASH_FILE = DATA / "config.sha256"
+STRUCT_FILE = DATA / "config.struct.sha256"
 
 PENDING: dict[str, dict[str, int]] = {}
 SEEN: dict[str, dict[str, float]] = {}
@@ -172,6 +173,10 @@ def port_protos(ib: dict) -> list[str]:
     return ["udp"] if proto == "hy2" else (["tcp", "udp"] if proto == "ss" else ["tcp"])
 
 
+def torrent_rule(emails: list[str]) -> dict:
+    return {"type": "field", "ruleTag": "torrent", "user": emails, "protocol": ["bittorrent"], "outboundTag": "block"}
+
+
 def build_config(state: dict) -> dict:
     users = state.get("users", [])
     inbounds = [{
@@ -195,13 +200,12 @@ def build_config(state: dict) -> dict:
     rules = [{"type": "field", "inboundTag": ["api"], "outboundTag": "api"}]
     torrent_users = [u["email"] for u in users if u.get("block_torrent")]
     if torrent_users:
-        rules.append({"type": "field", "user": torrent_users,
-                      "protocol": ["bittorrent"], "outboundTag": "block"})
+        rules.append(torrent_rule(torrent_users))
     rules.append({"type": "field", "ip": ["geoip:private"], "outboundTag": "block"})
 
     return {
         "log": {"loglevel": "warning", "access": str(ACCESS_LOG), "error": ERROR_LOG},
-        "api": {"tag": "api", "services": ["StatsService"]},
+        "api": {"tag": "api", "services": ["StatsService", "HandlerService", "RoutingService"]},
         "stats": {},
         "policy": {
             "levels": {"0": {"statsUserUplink": True, "statsUserDownlink": True,
@@ -258,6 +262,9 @@ def scan_log():
     if size > 20 * 1024 * 1024:
         open(ACCESS_LOG, "w").close()
         LOG_POS = 0
+    with contextlib.suppress(OSError):
+        if os.path.getsize(ERROR_LOG) > 20 * 1024 * 1024:
+            open(ERROR_LOG, "w").close()
 
 
 def online_ips() -> dict[str, list[str]]:
@@ -401,14 +408,87 @@ def probe(host: str, ports: list[int], timeout: float = 3) -> dict:
     return out
 
 
+def struct_digest(cfg: dict) -> str:
+    c = json.loads(json.dumps(cfg))
+    for ib in c["inbounds"]:
+        if "clients" in ib.get("settings", {}):
+            ib["settings"]["clients"] = []
+    c["routing"]["rules"] = [r for r in c["routing"]["rules"] if r.get("ruleTag") != "torrent"]
+    return hashlib.sha256(json.dumps(c, sort_keys=True).encode()).hexdigest()
+
+
+def _api(*args, files: dict | None = None) -> str:
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        paths = []
+        for name, data in (files or {}).items():
+            fp = Path(td) / name
+            fp.write_text(json.dumps(data))
+            paths.append(str(fp))
+        r = run([XRAY_BIN, "api", args[0], f"--server=127.0.0.1:{API_PORT}", "-t", "5", *args[1:], *paths],
+                timeout=30)
+    out = (r.stdout or "") + (r.stderr or "")
+    if r.returncode != 0:
+        raise RuntimeError(out[-500:])
+    return out
+
+
+def _count(out: str, word: str) -> int:
+    m = re.search(rf"{word} (\d+) user", out)
+    return int(m.group(1)) if m else -1
+
+
+def hot_apply(prev: dict, state: dict, cfg: dict):
+    old = {u["email"]: u for u in prev.get("users", [])}
+    new = {u["email"]: u for u in state.get("users", [])}
+    gone = sorted(e for e, u in old.items() if e not in new or new[e]["uuid"] != u["uuid"])
+    came = sorted(e for e, u in new.items() if e not in old or old[e]["uuid"] != u["uuid"])
+    for ib in cfg["inbounds"]:
+        if ib["tag"] == "api":
+            continue
+        if gone:
+            out = _api("rmu", f"-tag={ib['tag']}", *gone)
+            if _count(out, "Removed") != len(gone):
+                raise RuntimeError(out[-300:])
+        if came:
+            part = json.loads(json.dumps(ib))
+            part["settings"]["clients"] = [c for c in part["settings"]["clients"] if c.get("email") in came]
+            out = _api("adu", files={"in.json": {"inbounds": [part]}})
+            if _count(out, "Added") != len(came):
+                raise RuntimeError(out[-300:])
+    t_old = sorted(e for e, u in old.items() if u.get("block_torrent"))
+    t_new = sorted(e for e, u in new.items() if u.get("block_torrent"))
+    if t_old != t_new:
+        if t_old:
+            _api("rmrules", "torrent")
+        if t_new:
+            _api("adrules", "-append", files={"r.json": {"routing": {"rules": [torrent_rule(t_new)]}}})
+
+
 def apply_state(state: dict) -> dict:
     force = bool(state.pop("force", False))
     cfg = build_config(state)
     text = json.dumps(cfg, indent=2, ensure_ascii=False)
     digest = hashlib.sha256(text.encode()).hexdigest()
+    struct = struct_digest(cfg)
+    try:
+        prev = json.loads(STATE_FILE.read_text()) if STATE_FILE.exists() else None
+    except ValueError:
+        prev = None
     STATE_FILE.write_text(json.dumps(state, ensure_ascii=False))
-    if not force and HASH_FILE.exists() and HASH_FILE.read_text() == digest and xray_running():
+    running = xray_running()
+    if not force and HASH_FILE.exists() and HASH_FILE.read_text() == digest and running:
         return {"changed": False}
+    if (not force and running and prev is not None and STRUCT_FILE.exists()
+            and STRUCT_FILE.read_text() == struct):
+        try:
+            collect_stats()
+            hot_apply(prev, state, cfg)
+            XRAY_CONFIG.write_text(text)
+            HASH_FILE.write_text(digest)
+            return {"changed": True, "restarted": False}
+        except Exception as e:
+            print("hot apply failed, restarting xray:", e, flush=True)
     collect_stats()
     XRAY_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     tmp = XRAY_CONFIG.with_name("config.new.json")
@@ -418,6 +498,7 @@ def apply_state(state: dict) -> dict:
         raise ValueError("Xray отклонил конфигурацию: " + (test.stdout + test.stderr)[-1500:])
     os.replace(tmp, XRAY_CONFIG)
     HASH_FILE.write_text(digest)
+    STRUCT_FILE.write_text(struct)
     ensure_log_perms()
     ufw_allow([(int(i["port"]), pr) for i in state.get("inbounds", []) for pr in port_protos(i)])
     run(["systemctl", "restart", XRAY_SERVICE])

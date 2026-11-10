@@ -1129,7 +1129,8 @@ async def notify_update(st: dict):
 
 
 SETTING_KEYS = ("panel_title", "public_url", "bot_token", "admin_tg_ids", "support",
-                "default_traffic_limit_gb", "default_device_limit", "tg_route", "tg_node_id", "tg_proxy", "lang")
+                "default_traffic_limit_gb", "default_device_limit", "tg_route", "tg_node_id", "tg_proxy", "lang",
+                "auto_select")
 TG_KEYS = ("bot_token", "tg_route", "tg_node_id", "tg_proxy")
 
 
@@ -1144,6 +1145,8 @@ async def settings(request: Request):
                     v = v.rstrip("/")
                     if v and not v.startswith(("http://", "https://")):
                         raise ApiError("Публичный адрес должен начинаться с http:// или https://")
+                if k == "auto_select":
+                    v = "1" if v in ("1", "true", "True") else "0"
                 if k == "lang" and v not in ("ru", "en"):
                     raise ApiError("Неизвестное действие")
                 if k == "tg_route" and v not in ("direct", "node", "proxy"):
@@ -1198,6 +1201,11 @@ async def subscription(request: Request):
     if core.user_status(u) != "active":
         headers["announce"] = "base64:" + base64.b64encode(
             f"Подписка неактивна: {core.STATUS_TEXT[core.user_status(u)]}".encode()).decode()
+    ua = request.headers.get("user-agent", "").lower()
+    if (core.auto_select_on() and core.user_status(u) == "active" and links
+            and (any(k in ua for k in ("happ", "incy")) or request.query_params.get("format") == "json")):
+        body_json = json.dumps(core.user_json(u, core.user_lang(u)), ensure_ascii=False)
+        return Response(body_json, media_type="application/json; charset=utf-8", headers=headers)
     payload = base64.b64encode("\n".join(links).encode()).decode()
     return Response(payload, media_type="text/plain; charset=utf-8", headers=headers)
 
