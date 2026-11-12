@@ -49,7 +49,10 @@ def desired_state(node, users) -> dict:
     vpns = q("SELECT * FROM vpns WHERE node_id=? AND enabled=1", (node["id"],))
     if not _agent_ok(node, "1.1.0"):
         vpns = [v for v in vpns if (v.get("protocol") or "vless") == "vless"]
+    socks = ({"port": int(node["socks_port"]), "user": node["socks_user"], "pass": node["socks_pass"]}
+             if node.get("socks_port") and node.get("socks_pass") and _agent_ok(node, "1.2.3") else None)
     return {
+        "socks": socks,
         "inbounds": [{k: (v.get(k) or ("vless" if k == "protocol" else "")) if k not in ("id", "port") else v[k]
                       for k in INBOUND_KEYS} for v in vpns],
         "users": [{"email": f"u{u['id']}", "uuid": u["uuid"], "block_torrent": bool(u["block_torrent"])}

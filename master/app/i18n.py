@@ -11,6 +11,8 @@ EXACT = {
     "Пароль должен быть не короче 8 символов": "Password must be at least 8 characters",
     "Этот сервер уже подключён": "This server is already connected",
     "Сервер не найден": "Server not found",
+    "Укажите порт от 1 до 65535": "Enter a port from 1 to 65535",
+    "SOCKS5 работает с work-панелью 1.2.3 и новее — сначала обновите сервер": "SOCKS5 needs work panel 1.2.3 or newer — update the server first",
     "На сервере старая версия work-панели — обновите её: bash install-node.sh":
         "The server runs an old work panel — update it: hidevp → Update",
     "Выберите подключённый сервер": "Select a connected server",

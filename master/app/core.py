@@ -221,6 +221,20 @@ def user_links(u: dict) -> list[str]:
     return [vpn_link(u, r, {"host": r["n_host"], "country_code": r["n_cc"]}) for r in _vpn_rows()]
 
 
+def socks_links(node: dict) -> dict:
+    if not node.get("socks_port") or not node.get("socks_pass"):
+        return {}
+    host, port = _host(node), int(node["socks_port"])
+    user, pw = node["socks_user"], node["socks_pass"]
+    raw = (node.get("host") or "").strip("[]")
+    name = quote(f"{flag(node.get('country_code') or '')} {node.get('name') or raw} SOCKS5".strip())
+    cred = base64.urlsafe_b64encode(f"{user}:{pw}".encode()).decode().rstrip("=")
+    return {"host": raw, "port": port, "user": user, "pass": pw,
+            "url": f"socks5://{quote(user, safe='')}:{quote(pw, safe='')}@{host}:{port}",
+            "app": f"socks://{cred}@{host}:{port}#{name}",
+            "tg": f"https://t.me/socks?server={quote(raw, safe='')}&port={port}&user={quote(user, safe='')}&pass={quote(pw, safe='')}"}
+
+
 AUTO_PROBE = "https://www.gstatic.com/generate_204"
 
 

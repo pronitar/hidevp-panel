@@ -124,6 +124,9 @@ MIGRATIONS = [
     ("vpns", "cert_pem", "ALTER TABLE vpns ADD COLUMN cert_pem TEXT DEFAULT ''"),
     ("vpns", "key_pem", "ALTER TABLE vpns ADD COLUMN key_pem TEXT DEFAULT ''"),
     ("vpns", "cert_pin", "ALTER TABLE vpns ADD COLUMN cert_pin TEXT DEFAULT ''"),
+    ("nodes", "socks_port", "ALTER TABLE nodes ADD COLUMN socks_port INTEGER DEFAULT 0"),
+    ("nodes", "socks_user", "ALTER TABLE nodes ADD COLUMN socks_user TEXT DEFAULT ''"),
+    ("nodes", "socks_pass", "ALTER TABLE nodes ADD COLUMN socks_pass TEXT DEFAULT ''"),
 ]
 
 

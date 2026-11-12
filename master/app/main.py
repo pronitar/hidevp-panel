@@ -22,7 +22,7 @@ from .i18n import LANG, tr
 from .bot import manager as bot
 from .db import ex, get_setting, init_db, prices, q, q1, set_setting
 from .events import request_sync
-from .sync import LAST_RUN, active_users, push_state, sync_loop
+from .sync import LAST_RUN, _agent_ok, active_users, push_state, sync_loop
 
 log = logging.getLogger("panel")
 
@@ -215,7 +215,8 @@ def _vt(v: str) -> tuple:
 
 
 def node_out(n: dict) -> dict:
-    d = {k: v for k, v in n.items() if k not in ("api_key", "cert_pem")}
+    d = {k: v for k, v in n.items() if k not in ("api_key", "cert_pem", "socks_user", "socks_pass")}
+    d["socks_on"] = bool(n.get("socks_port") and n.get("socks_pass"))
     d["info"] = json.loads(n.get("info") or "{}")
     d["error"] = tr(n.get("error") or "")
     d["flag"] = core.flag(n["country_code"])
@@ -477,11 +478,13 @@ async def port_guard(node_id: int, port: int, vid: int | None, force: bool = Fal
     busy = {} if udp_only else {int(p): who for p, who in (info.get("busy_ports") or {}).items()}
     if not udp_only:
         busy[int(n["port"])] = "work-панель"
-    mine = {"udp"} if udp_only else ({"tcp", "udp"} if protocol == "ss" else {"tcp"})
+    mine = {"udp"} if udp_only else ({"tcp", "udp"} if protocol in ("ss", "socks") else {"tcp"})
     for v in q("SELECT port, name, protocol FROM vpns WHERE node_id=? AND id!=?", (node_id, vid or 0)):
         other = {"udp"} if v["protocol"] == "hy2" else ({"tcp", "udp"} if v["protocol"] == "ss" else {"tcp"})
         if mine & other:
             busy[int(v["port"])] = f"VPN «{v['name']}»"
+    if protocol != "socks" and n.get("socks_port") and n.get("socks_pass"):
+        busy[int(n["socks_port"])] = "SOCKS5"
     free = [p for p in PORT_CANDIDATES if p not in busy and p != port]
 
     if port in busy:
@@ -1106,6 +1109,43 @@ async def node_update(request: Request):
     return ok({"started": True, "version": payload["version"], **(r or {})})
 
 
+def _node_or_404(request: Request) -> dict:
+    n = q1("SELECT * FROM nodes WHERE id=?", (int(request.path_params["id"]),))
+    if not n:
+        raise ApiError("Сервер не найден", 404)
+    return n
+
+
+async def node_socks(request: Request):
+    n = _node_or_404(request)
+    if request.method == "GET":
+        return ok({"on": bool(n.get("socks_port") and n.get("socks_pass")), "port": n.get("socks_port") or 0,
+                   "links": core.socks_links(n), "agent_ok": _agent_ok(n, "1.2.3"),
+                   "agent": json.loads(n.get("info") or "{}").get("version", "")})
+    if request.method == "DELETE":
+        ex("UPDATE nodes SET socks_port=0, socks_user='', socks_pass='' WHERE id=?", (n["id"],))
+        request_sync()
+        return ok()
+    d = await body(request)
+    try:
+        port = int(d.get("port") or 0)
+    except (TypeError, ValueError):
+        port = 0
+    if not 1 <= port <= 65535:
+        raise ApiError("Укажите порт от 1 до 65535")
+    if not _agent_ok(n, "1.2.3"):
+        raise ApiError("SOCKS5 работает с work-панелью 1.2.3 и новее — сначала обновите сервер")
+    if port != int(n.get("socks_port") or 0) or not n.get("socks_pass"):
+        await port_guard(n["id"], port, None, bool(d.get("force")), "socks")
+    user, pw = n.get("socks_user") or "", n.get("socks_pass") or ""
+    if d.get("regen") or not pw:
+        user, pw = "u" + secrets.token_hex(4), secrets.token_urlsafe(18)
+    ex("UPDATE nodes SET socks_port=?, socks_user=?, socks_pass=? WHERE id=?", (port, user, pw, n["id"]))
+    request_sync()
+    n = q1("SELECT * FROM nodes WHERE id=?", (n["id"],))
+    return ok({"on": True, "port": port, "links": core.socks_links(n), "agent_ok": True})
+
+
 async def node_update_log(request: Request):
     n = q1("SELECT * FROM nodes WHERE id=?", (int(request.path_params["id"]),))
     if not n:
@@ -1431,6 +1471,7 @@ def build_app() -> Starlette:
         Route(base + "/api/nodes/{id:int}/diag", api(node_diag), methods=["POST"]),
         Route(base + "/api/nodes/{id:int}/update", api(node_update), methods=["POST"]),
         Route(base + "/api/nodes/{id:int}/update-log", api(node_update_log)),
+        Route(base + "/api/nodes/{id:int}/socks", api(node_socks), methods=["GET", "PUT", "DELETE"]),
         Route(base + "/api/nodes/{id:int}/{action}", api(node_action), methods=["POST"]),
         Route(base + "/api/reload", api(reload_all), methods=["POST"]),
         Route(base + "/api/vpns", api(vpns_list), methods=["GET", "POST"]),

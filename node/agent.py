@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.2.2"
+VERSION = "1.2.3"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -194,6 +194,14 @@ def build_config(state: dict) -> dict:
             "protocol": XRAY_PROTOCOL[proto],
             "settings": inbound_settings(ib, ids),
             **({"streamSettings": server_stream(ib)} if proto != "ss" else {}),
+            "sniffing": {"enabled": True, "destOverride": ["http", "tls", "quic"]},
+        })
+
+    socks = state.get("socks") or {}
+    if socks.get("port") and socks.get("pass"):
+        inbounds.append({
+            "tag": "socks-admin", "listen": "0.0.0.0", "port": int(socks["port"]), "protocol": "socks",
+            "settings": {"auth": "password", "accounts": [{"user": socks["user"], "pass": socks["pass"]}], "udp": True},
             "sniffing": {"enabled": True, "destOverride": ["http", "tls", "quic"]},
         })
 
@@ -444,7 +452,7 @@ def hot_apply(prev: dict, state: dict, cfg: dict):
     gone = sorted(e for e, u in old.items() if e not in new or new[e]["uuid"] != u["uuid"])
     came = sorted(e for e, u in new.items() if e not in old or old[e]["uuid"] != u["uuid"])
     for ib in cfg["inbounds"]:
-        if ib["tag"] == "api":
+        if "clients" not in ib.get("settings", {}):
             continue
         if gone:
             out = _api("rmu", f"-tag={ib['tag']}", *gone)
@@ -500,7 +508,9 @@ def apply_state(state: dict) -> dict:
     HASH_FILE.write_text(digest)
     STRUCT_FILE.write_text(struct)
     ensure_log_perms()
-    ufw_allow([(int(i["port"]), pr) for i in state.get("inbounds", []) for pr in port_protos(i)])
+    socks = state.get("socks") or {}
+    ufw_allow([(int(i["port"]), pr) for i in state.get("inbounds", []) for pr in port_protos(i)]
+              + ([(int(socks["port"]), "tcp"), (int(socks["port"]), "udp")] if socks.get("port") else []))
     run(["systemctl", "restart", XRAY_SERVICE])
     time.sleep(1.5)
     if not xray_running():
