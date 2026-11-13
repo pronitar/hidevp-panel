@@ -555,9 +555,9 @@ def validate_vpn(d: dict, node_id: int, vid: int | None = None) -> dict:
         if "." not in sni or sni.replace(".", "").isdigit():
             raise ApiError("Для своего сайта укажите домен, например nl.example.com")
         own80 = (info.get("busy_ports") or {}).get("80")
-        if own80 and own80 != "hidevp-caddy":
+        if own80 and own80 not in ("hidevp-caddy", "nginx"):
             raise ApiError(f"Порт 80 на сервере занят ({own80}) — он нужен для выпуска сертификата Let's Encrypt. "
-                           "Освободите порт 80 или используйте другой сервер")
+                           "Освободите порт 80 (подходит и nginx master-панели) или используйте другой сервер")
         try:
             addrs = {a[4][0] for a in socket.getaddrinfo(sni, None)}
         except OSError:

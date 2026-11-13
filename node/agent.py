@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -531,9 +531,42 @@ h1{{font-size:28px;margin:0 0 8px}}p{{color:#555}}footer{{margin-top:48px;font-s
 <footer>&copy; {y} {d}</footer></body></html>"""
 
 
+NGINX_STEAL = Path("/etc/nginx/conf.d/hidevp-steal.conf")
+ACME_PORT = STEAL_PORT + 1
+
+
+def _nginx_steal(domains: list[str]) -> bool:
+    if not domains:
+        if NGINX_STEAL.exists():
+            NGINX_STEAL.unlink()
+            run(["systemctl", "reload", "nginx"])
+        return False
+    if _port_owners("tcp").get(80) != "nginx" or not Path("/etc/nginx/conf.d").is_dir():
+        if NGINX_STEAL.exists():
+            NGINX_STEAL.unlink()
+            run(["systemctl", "reload", "nginx"])
+        return False
+    text = (f"server {{\n    listen 80;\n    server_name {' '.join(domains)};\n"
+            f"    location / {{\n        proxy_pass http://127.0.0.1:{ACME_PORT};\n"
+            f"        proxy_set_header Host $host;\n        proxy_set_header X-Forwarded-For $remote_addr;\n    }}\n}}\n")
+    if not NGINX_STEAL.exists() or NGINX_STEAL.read_text() != text:
+        old = NGINX_STEAL.read_text() if NGINX_STEAL.exists() else None
+        NGINX_STEAL.write_text(text)
+        t = run(["nginx", "-t"])
+        if t.returncode != 0:
+            if old is None:
+                NGINX_STEAL.unlink()
+            else:
+                NGINX_STEAL.write_text(old)
+            raise ValueError("nginx не принял настройку для своего сайта: " + (t.stderr or t.stdout)[-300:])
+        run(["systemctl", "reload", "nginx"])
+    return True
+
+
 def ensure_steal(domains: list[str]):
     conf = DATA / "Caddyfile"
     unit = Path(f"/etc/systemd/system/{CADDY_UNIT}.service")
+    via_nginx = _nginx_steal(domains)
     if not domains:
         if unit.exists():
             run(["systemctl", "disable", "--now", CADDY_UNIT])
@@ -545,9 +578,12 @@ def ensure_steal(domains: list[str]):
         if not page.exists():
             page.parent.mkdir(parents=True, exist_ok=True)
             page.write_text(SITE_HTML.format(d=d, y=time.strftime("%Y")))
-    blocks = ["{\n\tadmin off\n\thttp_port 80\n}"]
+    blocks = [f"{{\n\tadmin off\n\thttp_port {ACME_PORT if via_nginx else 80}\n}}"]
     for d in domains:
-        blocks.append(f"http://{d} {{\n\tredir https://{{host}}{{uri}} permanent\n}}")
+        if via_nginx:
+            blocks.append(f"http://{d} {{\n\tbind 127.0.0.1\n\troot * {SITE_DIR / d}\n\tfile_server\n}}")
+        else:
+            blocks.append(f"http://{d} {{\n\tredir https://{{host}}{{uri}} permanent\n}}")
         blocks.append(f"https://{d}:{STEAL_PORT} {{\n\tbind 127.0.0.1\n\ttls {{\n\t\tissuer acme {{\n"
                       f"\t\t\tdisable_tlsalpn_challenge\n\t\t}}\n\t}}\n\troot * {SITE_DIR / d}\n\tfile_server\n}}")
     text = "\n\n".join(blocks) + "\n"
