@@ -217,8 +217,8 @@ textarea{resize:vertical;min-height:80px}
         box-shadow:0 0 40px var(--shadow);overflow-y:auto;padding:14px 12px calc(14px + env(safe-area-inset-bottom))}
   body.navopen aside{transform:none}
   body.navopen{overflow:hidden}
-  .navshade{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.45)}
-  body.navopen .navshade{display:block}
+  .navshade{display:block;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.45);opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s}
+  body.navopen .navshade{opacity:1;visibility:visible}
   .navsearch{display:block;margin:4px 0 10px}
   .navsearch input{padding:9px 11px}
   .nav button{padding:11px 12px;font-size:15px}
@@ -230,6 +230,55 @@ textarea{resize:vertical;min-height:80px}
   .filters input{width:100%}
 }
 @media (max-width:430px){ .burger .cur{display:none} }
+:root{--ease:cubic-bezier(.2,.8,.2,1)}
+body{transition:background-color .25s ease,color .25s ease}
+.btn,.nav button,.verchip,.seg2 > *,.check,input,select,textarea,.vtag,.badge,.tbl tr,.card{transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,opacity .18s ease,transform .12s ease}
+.btn:active:not(:disabled),.nav button:active{transform:scale(.97)}
+.btn:disabled{opacity:.6}
+.nav button{position:relative}
+.nav button::before{content:"";position:absolute;left:0;top:50%;width:3px;height:0;border-radius:3px;background:#3b82f6;transform:translateY(-50%);transition:height .2s var(--ease)}
+.nav button.on::before{height:60%}
+.card.node:hover,.card.tile:hover{border-color:var(--hover)}
+.meter .bar i{transition:width .6s var(--ease),background-color .3s ease}
+#main{transition:opacity .18s ease}
+#main.busy{opacity:.5;pointer-events:none}
+#main.enter > *{animation:pgIn .32s var(--ease) both}
+#main.enter > *:nth-child(2){animation-delay:.04s}
+#main.enter > *:nth-child(3){animation-delay:.08s}
+#main.enter > *:nth-child(4){animation-delay:.12s}
+#main.enter > *:nth-child(n+5){animation-delay:.16s}
+#main.enter .grid > *{animation:pgIn .34s var(--ease) both}
+#main.enter .grid > *:nth-child(2){animation-delay:.05s}
+#main.enter .grid > *:nth-child(3){animation-delay:.1s}
+#main.enter .grid > *:nth-child(n+4){animation-delay:.15s}
+@keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.badge{animation:fadeIn .3s ease both}
+#main.quiet .badge{animation:none}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.badge.s-online{position:relative;padding-left:20px}
+.badge.s-online::before{content:"";position:absolute;left:8px;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:currentColor;animation:livePulse 2s ease-in-out infinite}
+@keyframes livePulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,currentColor 55%,transparent)}50%{box-shadow:0 0 0 4px transparent}}
+.modal-bg{animation:bgIn .2s ease both}
+.modal-bg > .modal{animation:mIn .26s var(--ease) both}
+.modal-bg.out{animation:bgOut .16s ease both;pointer-events:none}
+.modal-bg.out > .modal{animation:mOut .16s ease both}
+@keyframes bgIn{from{background-color:rgba(0,0,0,0)}}
+@keyframes bgOut{to{background-color:rgba(0,0,0,0)}}
+@keyframes mIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes mOut{to{opacity:0;transform:translateY(8px) scale(.98)}}
+#toasts{position:fixed;right:20px;bottom:20px;z-index:99;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+#toasts .toast{position:static;pointer-events:auto;animation:tIn .28s var(--ease) both}
+#toasts .toast.out{animation:tOut .22s ease both}
+@keyframes tIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes tOut{to{opacity:0;transform:translateX(16px)}}
+.login .card{animation:mIn .35s var(--ease) both}
+.upsteps li{transition:opacity .25s ease,border-color .25s ease}
+.upsteps li.done .ui,.upsteps li.fail .ui{animation:popIn .3s var(--ease) both}
+@keyframes popIn{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+.sk{display:block;height:14px;border-radius:6px;background:linear-gradient(90deg,var(--input) 25%,var(--card2) 50%,var(--input) 75%);background-size:200% 100%;animation:shimmer 1.2s linear infinite}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (max-width:760px){#toasts{left:16px;right:16px;bottom:16px;align-items:stretch}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -354,7 +403,13 @@ async function call(method, path, body){
   if (!r.ok) { const e = new Error(d.error || ("Ошибка " + r.status)); e.data = d; throw e; }
   return d;
 }
-function toast(msg, err){const t=document.createElement("div");t.className="toast"+(err?" err":"");t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),err?5000:2500)}
+function toast(msg, err){
+  let box = $("#toasts"); if (!box) { box = document.createElement("div"); box.id = "toasts"; document.body.appendChild(box); }
+  const t = document.createElement("div"); t.className = "toast" + (err ? " err" : ""); t.textContent = msg;
+  box.appendChild(t); while (box.children.length > 4) box.firstChild.remove();
+  const bye = () => { t.classList.add("out"); setTimeout(() => t.remove(), 220); };
+  t.onclick = bye; setTimeout(bye, err ? 5000 : 2600);
+}
 async function act(fn, okMsg){try{const r=await fn();if(okMsg)toast(okMsg);return r}catch(e){toast(e.message,true);throw e}}
 function copy(text){
   if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(()=>toast("Скопировано"));
@@ -371,7 +426,10 @@ function modal(title, html, buttons){
   document.body.appendChild(bg);
   return bg;
 }
-function closeModal(){ const m = $("#modal"); if (m) m.remove(); }
+function closeModal(){
+  const m = $("#modal"); if (!m) return;
+  m.id = ""; m.classList.add("out"); setTimeout(() => m.remove(), 170);
+}
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#uplock")) closeModal(); });
 
 function showLogin(){
@@ -707,10 +765,27 @@ function go(t){
   document.querySelectorAll(".nav button[data-t]").forEach(b => b.classList.toggle("on", b.dataset.t === t));
   const cur = $("#navcur"), T = TABS.find(x=>x[0]===t); if (cur && T) { cur.textContent = T[1]; cur.dataset.ru = T[1]; }
   clearInterval(timer);
-  render();
+  const m = main(), seq = ++GO_SEQ;
+  if (m) { m.classList.remove("enter"); }
+  const slow = setTimeout(() => { if (seq === GO_SEQ && m) m.classList.add("busy"); }, 160);
+  Promise.resolve().then(() => render()).catch(() => {}).finally(() => {
+    clearTimeout(slow);
+    if (seq !== GO_SEQ || !m) return;
+    m.classList.remove("busy"); void m.offsetWidth; m.classList.add("enter");
+    window.scrollTo({top: 0});
+    setTimeout(() => { if (seq === GO_SEQ) m.classList.remove("enter"); }, 700);
+  });
   if (t === "overview" || t === "users" || t === "nodes") timer = setInterval(() => { if (!$("#modal") && !$("#uplock")) render(true); }, 20000);
 }
-function render(silent){ return ({overview, nodes, vpns, users, stats: statsPage, promos, pay: payPage, notices: noticesPage, bot: botPage, backup: backupPage, updates: updatesPage, settings})[tab](silent); }
+let GO_SEQ = 0;
+function render(silent){
+  const m = main();
+  if (silent && m) { m.classList.add("quiet"); m.classList.remove("enter"); }
+  const r = Promise.resolve(renderPage(silent));
+  if (silent && m) r.finally(() => setTimeout(() => m.classList.remove("quiet"), 50));
+  return r;
+}
+function renderPage(silent){ return ({overview, nodes, vpns, users, stats: statsPage, promos, pay: payPage, notices: noticesPage, bot: botPage, backup: backupPage, updates: updatesPage, settings})[tab](silent); }
 const main = () => $("#main");
 
 async function overview(){
