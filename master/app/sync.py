@@ -5,7 +5,7 @@ import time
 
 from . import core, nodes
 from .bot import manager as bot
-from .db import ex, q
+from .db import ex, q, q1
 from .events import sync_event
 
 log = logging.getLogger("sync")
@@ -34,7 +34,7 @@ def mark(node, status, error=""):
 
 
 INBOUND_KEYS = ("id", "port", "transport", "sni", "dest", "private_key", "public_key", "short_id", "path",
-                "service_name", "protocol", "server_key", "obfs", "cert_pem", "key_pem")
+                "service_name", "protocol", "server_key", "obfs", "cert_pem", "key_pem", "upstream", "extra_users")
 
 
 def _agent_ok(node, need: str) -> bool:
@@ -49,6 +49,22 @@ def desired_state(node, users) -> dict:
     vpns = q("SELECT * FROM vpns WHERE node_id=? AND enabled=1", (node["id"],))
     if not _agent_ok(node, "1.1.0"):
         vpns = [v for v in vpns if (v.get("protocol") or "vless") == "vless"]
+    if not _agent_ok(node, "1.3.0"):
+        vpns = [v for v in vpns if not v.get("upstream_id") and v.get("dest") != "self"]
+    out = []
+    for v in vpns:
+        if v.get("upstream_id"):
+            up = q1("""SELECT u.*, n.host AS n_host, n.info AS n_info FROM vpns u JOIN nodes n ON n.id=u.node_id
+                       WHERE u.id=? AND u.enabled=1""", (v["upstream_id"],))
+            if not up or not v.get("bridge_uuid") or not _agent_ok({"info": up["n_info"]}, "1.3.0"):
+                continue
+            v = {**v, "upstream": core.client_outbound({"uuid": v["bridge_uuid"]}, up,
+                                                       core._host({"host": up["n_host"]}).strip("[]"), "up")}
+        bridges = q("SELECT id, bridge_uuid FROM vpns WHERE upstream_id=? AND enabled=1 AND bridge_uuid!=''", (v["id"],))
+        if bridges:
+            v = {**v, "extra_users": [[f"b{b['id']}", b["bridge_uuid"]] for b in bridges]}
+        out.append(v)
+    vpns = out
     socks = ({"port": int(node["socks_port"]), "user": node["socks_user"], "pass": node["socks_pass"]}
              if node.get("socks_port") and node.get("socks_pass") and _agent_ok(node, "1.2.3") else None)
     return {

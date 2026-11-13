@@ -17,6 +17,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Проверка
+        run: |
+          python3 -m py_compile master/app/*.py node/agent.py tools/release.py verify_release.py
+          for f in *.sh; do bash -n "$f"; done
+          for f in master/static/*.html; do
+            python3 -c "import re,sys;print('\n'.join(re.findall(r'<script>(.*?)</script>',open(sys.argv[1]).read(),re.S)))" "$f" > /tmp/page.js
+            node --check /tmp/page.js || { echo "JS error in $f"; exit 1; }
+          done
+
       - name: Сборка и подпись
         env:
           HIDEVP_RELEASE_KEY: ${{ secrets.HIDEVP_RELEASE_KEY }}

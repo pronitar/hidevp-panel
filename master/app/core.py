@@ -213,8 +213,12 @@ def vpn_link(u: dict, vpn: dict, node: dict) -> str:
 
 
 def _vpn_rows():
-    return q("""SELECT v.*, n.host AS n_host, n.country_code AS n_cc FROM vpns v
-                JOIN nodes n ON n.id=v.node_id WHERE v.enabled=1 ORDER BY v.sort, v.id""")
+    return q("""SELECT v.*, n.host AS n_host, IFNULL(un.country_code, n.country_code) AS n_cc FROM vpns v
+                JOIN nodes n ON n.id=v.node_id
+                LEFT JOIN vpns uv ON uv.id=v.upstream_id AND v.upstream_id>0
+                LEFT JOIN nodes un ON un.id=uv.node_id
+                WHERE v.enabled=1 AND (IFNULL(v.upstream_id, 0)=0 OR (uv.enabled=1 AND v.bridge_uuid!=''))
+                ORDER BY v.sort, v.id""")
 
 
 def user_links(u: dict) -> list[str]:
@@ -240,6 +244,19 @@ AUTO_PROBE = "https://www.gstatic.com/generate_204"
 
 def auto_select_on() -> bool:
     return get_setting("auto_select", "0") == "1"
+
+
+def fragment_on() -> bool:
+    return get_setting("client_fragment", "0") == "1"
+
+
+def json_sub_on() -> bool:
+    return auto_select_on() or fragment_on()
+
+
+FRAGMENT = {"tag": "fragment", "protocol": "freedom",
+            "settings": {"fragment": {"packets": "tlshello", "length": "100-200", "interval": "10-20"}},
+            "streamSettings": {"sockopt": {"tcpNoDelay": True}}}
 
 
 def _client_stream(vpn: dict) -> dict:
@@ -298,6 +315,11 @@ def _client_config(remarks: str, proxies: list[dict], balanced: bool, descriptio
     }
     if description:
         cfg["meta"] = {"serverDescription": description}
+    if fragment_on() and any(p.get("streamSettings", {}).get("security") == "reality" for p in proxies):
+        for p in proxies:
+            if p.get("streamSettings", {}).get("security") == "reality":
+                p["streamSettings"]["sockopt"] = {"dialerProxy": "fragment"}
+        cfg["outbounds"].append(json.loads(json.dumps(FRAGMENT)))
     if balanced:
         cfg["burstObservatory"] = {"subjectSelector": ["proxy-"], "pingConfig": {
             "destination": AUTO_PROBE, "connectivity": "", "interval": "1m", "sampling": 3, "timeout": "5s"}}

@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.2.3"
+VERSION = "1.3.0"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -32,6 +32,11 @@ ACCESS_LOG = Path(os.environ.get("XRAY_ACCESS_LOG", "/var/log/xray/access.log"))
 ERROR_LOG = os.environ.get("XRAY_ERROR_LOG", "/var/log/xray/error.log")
 XRAY_SERVICE = os.environ.get("XRAY_SERVICE", "xray")
 API_PORT = 10085
+STEAL_PORT = int(os.environ.get("HIDEVP_STEAL_PORT", "8444"))
+CADDY_UNIT = "hidevp-caddy"
+CADDY_DIR = Path("/var/lib/hidevp-caddy")
+CADDY_VERSION = "2.10.2"
+SITE_DIR = DATA / "site"
 ONLINE_WINDOW = 180
 
 STATE_FILE = DATA / "state.json"
@@ -128,9 +133,10 @@ def server_stream(ib: dict) -> dict:
             "hysteriaSettings": {"version": 2, "masquerade": {"type": "proxy", "url": f"https://{ib['sni']}",
                                                               "rewriteHost": True}},
         }, ib)
+    dest = f"127.0.0.1:{STEAL_PORT}" if ib.get("dest") == "self" else ib["dest"]
     return _transport({
         "network": ib.get("transport") or "tcp", "security": "reality",
-        "realitySettings": {"show": False, "dest": ib["dest"], "xver": 0, "serverNames": [ib["sni"]],
+        "realitySettings": {"show": False, "dest": dest, "xver": 0, "serverNames": [ib["sni"]],
                             "privateKey": ib["private_key"], "shortIds": [ib["short_id"]]},
     }, ib)
 
@@ -188,7 +194,8 @@ def build_config(state: dict) -> dict:
         proto = ib.get("protocol") or "vless"
         if proto == "hy2" and not hy2:
             continue
-        ids = [("diag", diag_uuid())] + [(u["email"], u["uuid"]) for u in users]
+        ids = ([("diag", diag_uuid())] + [(u["email"], u["uuid"]) for u in users]
+               + [(e, uid) for e, uid in (ib.get("extra_users") or [])])
         inbounds.append({
             "tag": f"in-{ib['id']}", "listen": "0.0.0.0", "port": int(ib["port"]),
             "protocol": XRAY_PROTOCOL[proto],
@@ -210,6 +217,12 @@ def build_config(state: dict) -> dict:
     if torrent_users:
         rules.append(torrent_rule(torrent_users))
     rules.append({"type": "field", "ip": ["geoip:private"], "outboundTag": "block"})
+    upstreams = []
+    for ib in state.get("inbounds", []):
+        up = ib.get("upstream")
+        if up and any(i["tag"] == f"in-{ib['id']}" for i in inbounds):
+            upstreams.append({**up, "tag": f"up-{ib['id']}"})
+            rules.append({"type": "field", "inboundTag": [f"in-{ib['id']}"], "outboundTag": f"up-{ib['id']}"})
 
     return {
         "log": {"loglevel": "warning", "access": str(ACCESS_LOG), "error": ERROR_LOG},
@@ -222,7 +235,7 @@ def build_config(state: dict) -> dict:
         },
         "inbounds": inbounds,
         "outbounds": [{"protocol": "freedom", "tag": "direct"},
-                      {"protocol": "blackhole", "tag": "block"}],
+                      {"protocol": "blackhole", "tag": "block"}] + upstreams,
         "routing": {"domainStrategy": "AsIs", "rules": rules},
     }
 
@@ -420,7 +433,8 @@ def struct_digest(cfg: dict) -> str:
     c = json.loads(json.dumps(cfg))
     for ib in c["inbounds"]:
         if "clients" in ib.get("settings", {}):
-            ib["settings"]["clients"] = []
+            ib["settings"]["clients"] = [x for x in ib["settings"]["clients"]
+                                         if not re.fullmatch(r"u\d+", x.get("email", ""))]
     c["routing"]["rules"] = [r for r in c["routing"]["rules"] if r.get("ruleTag") != "torrent"]
     return hashlib.sha256(json.dumps(c, sort_keys=True).encode()).hexdigest()
 
@@ -467,10 +481,95 @@ def hot_apply(prev: dict, state: dict, cfg: dict):
     t_old = sorted(e for e, u in old.items() if u.get("block_torrent"))
     t_new = sorted(e for e, u in new.items() if u.get("block_torrent"))
     if t_old != t_new:
-        if t_old:
-            _api("rmrules", "torrent")
-        if t_new:
-            _api("adrules", "-append", files={"r.json": {"routing": {"rules": [torrent_rule(t_new)]}}})
+        _api("adrules", files={"r.json": {"routing": {"rules": cfg["routing"]["rules"]}}})
+
+
+def steal_domains(state: dict) -> list[str]:
+    return sorted({ib["sni"] for ib in state.get("inbounds", [])
+                   if ib.get("dest") == "self" and ib.get("sni") and (ib.get("protocol") or "vless") in ("vless", "trojan")})
+
+
+CADDY_BIN = "/usr/local/lib/hidevp/hidevp-caddy"
+
+
+def _system_caddy() -> str:
+    for c in ("/usr/bin/caddy", "/usr/local/bin/caddy"):
+        if os.path.exists(c):
+            return c
+    return ""
+
+
+def install_caddy() -> str:
+    if os.path.exists(CADDY_BIN):
+        return CADDY_BIN
+    os.makedirs(os.path.dirname(CADDY_BIN), exist_ok=True)
+    src = _system_caddy()
+    if src:
+        run(["install", "-m", "755", src, CADDY_BIN])
+        return CADDY_BIN
+    arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(os.uname().machine, "amd64")
+    url = (f"https://github.com/caddyserver/caddy/releases/download/v{CADDY_VERSION}/"
+           f"caddy_{CADDY_VERSION}_linux_{arch}.tar.gz")
+    r = run(["bash", "-c", f"set -e; t=$(mktemp -d); curl -fsSL -m 120 -o $t/c.tgz '{url}'; "
+                           f"tar -xzf $t/c.tgz -C $t caddy; install -m 755 $t/caddy {CADDY_BIN}; rm -rf $t"],
+            timeout=180)
+    if r.returncode == 0 and os.path.exists(CADDY_BIN):
+        return CADDY_BIN
+    apt = run(["bash", "-c", "DEBIAN_FRONTEND=noninteractive apt-get install -y caddy"], timeout=240)
+    if apt.returncode == 0 and _system_caddy():
+        run(["systemctl", "disable", "--now", "caddy"])
+        run(["install", "-m", "755", _system_caddy(), CADDY_BIN])
+    if not os.path.exists(CADDY_BIN):
+        raise ValueError("Не удалось установить Caddy для своего сайта: " + ((r.stderr or "") + (apt.stderr or ""))[-300:])
+    return CADDY_BIN
+
+
+SITE_HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{d}</title><style>body{{font:16px/1.6 system-ui,sans-serif;max-width:640px;margin:12vh auto;padding:0 20px;color:#222}}
+h1{{font-size:28px;margin:0 0 8px}}p{{color:#555}}footer{{margin-top:48px;font-size:13px;color:#999}}</style></head>
+<body><h1>{d}</h1><p>Personal homepage. Notes, photos and small projects will appear here soon.</p>
+<footer>&copy; {y} {d}</footer></body></html>"""
+
+
+def ensure_steal(domains: list[str]):
+    conf = DATA / "Caddyfile"
+    unit = Path(f"/etc/systemd/system/{CADDY_UNIT}.service")
+    if not domains:
+        if unit.exists():
+            run(["systemctl", "disable", "--now", CADDY_UNIT])
+        return
+    b = install_caddy()
+    SITE_DIR.mkdir(parents=True, exist_ok=True)
+    for d in domains:
+        page = SITE_DIR / d / "index.html"
+        if not page.exists():
+            page.parent.mkdir(parents=True, exist_ok=True)
+            page.write_text(SITE_HTML.format(d=d, y=time.strftime("%Y")))
+    blocks = ["{\n\tadmin off\n\thttp_port 80\n}"]
+    for d in domains:
+        blocks.append(f"http://{d} {{\n\tredir https://{{host}}{{uri}} permanent\n}}")
+        blocks.append(f"https://{d}:{STEAL_PORT} {{\n\tbind 127.0.0.1\n\ttls {{\n\t\tissuer acme {{\n"
+                      f"\t\t\tdisable_tlsalpn_challenge\n\t\t}}\n\t}}\n\troot * {SITE_DIR / d}\n\tfile_server\n}}")
+    text = "\n\n".join(blocks) + "\n"
+    CADDY_DIR.mkdir(parents=True, exist_ok=True)
+    unit_text = (f"[Unit]\nDescription=HideVP site\nAfter=network-online.target\n\n[Service]\n"
+                 f"Environment=XDG_DATA_HOME={CADDY_DIR} XDG_CONFIG_HOME={CADDY_DIR}\n"
+                 f"ExecStart={b} run --config {conf} --adapter caddyfile\nRestart=always\nRestartSec=5\n"
+                 f"LimitNOFILE=65536\n\n[Install]\nWantedBy=multi-user.target\n")
+    changed = not conf.exists() or conf.read_text() != text
+    if not unit.exists() or unit.read_text() != unit_text:
+        unit.write_text(unit_text)
+        run(["systemctl", "daemon-reload"])
+        changed = True
+    conf.write_text(text)
+    ufw_allow([(80, "tcp")])
+    active = run(["systemctl", "is-active", "--quiet", CADDY_UNIT]).returncode == 0
+    if changed or not active:
+        run(["systemctl", "enable", CADDY_UNIT])
+        r = run(["systemctl", "restart", CADDY_UNIT])
+        if r.returncode != 0:
+            log = run(["journalctl", "-u", CADDY_UNIT, "-n", "8", "--no-pager", "-o", "cat"]).stdout
+            raise ValueError("Не запустился сайт для self-steal (Caddy): " + log[-400:])
 
 
 def apply_state(state: dict) -> dict:
@@ -498,6 +597,7 @@ def apply_state(state: dict) -> dict:
         except Exception as e:
             print("hot apply failed, restarting xray:", e, flush=True)
     collect_stats()
+    ensure_steal(steal_domains(state))
     XRAY_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     tmp = XRAY_CONFIG.with_name("config.new.json")
     tmp.write_text(text)
@@ -550,10 +650,10 @@ def _port_owners(proto: str = "tcp") -> dict[int, str]:
     return owners
 
 
-def _tls_probe(host: str, timeout=6) -> tuple[bool, str]:
+def _tls_probe(host: str, timeout=6, addr: str = "", port: int = 443) -> tuple[bool, str]:
     try:
         ctx = ssl.create_default_context()
-        with socket.create_connection((host, 443), timeout=timeout) as raw:
+        with socket.create_connection((addr or host, port), timeout=timeout) as raw:
             with ctx.wrap_socket(raw, server_hostname=host) as s:
                 ver = s.version()
         return ver == "TLSv1.3", f"{ver}"
@@ -653,6 +753,8 @@ def diagnose(lang: str = "ru") -> dict:
         proto = ib.get("protocol") or "vless"
         desc = names[proto] + (f" {ib.get('transport') or 'tcp'}" if proto in ("vless", "trojan") else "")
         label = L(f"порт {p}", f"port {p}") + f" ({desc}{', ' + ib['sni'] if ib.get('sni') else ''})"
+        if ib.get("upstream"):
+            label += L(" → каскад", " → cascade")
         if proto == "hy2" and not hy2_supported():
             checks.append(_check(L(f"Hysteria2 на {label}", f"Hysteria2 on {label}"), False,
                                  L(f"нужен Xray {'.'.join(map(str, HY2_MIN_XRAY))} или новее", f"needs Xray {'.'.join(map(str, HY2_MIN_XRAY))} or newer"),
@@ -676,7 +778,15 @@ def diagnose(lang: str = "ru") -> dict:
                 checks.append(_check(L(f"Фаервол ufw пропускает порт {p}/{pr}", f"ufw firewall allows port {p}/{pr}"),
                                      ufw_allowed(ufw.stdout, p, pr), "",
                                      L(f"Выполните на сервере: ufw allow {p}/{pr}", f"Run on the server: ufw allow {p}/{pr}")))
-        if ib.get("sni"):
+        if ib.get("dest") == "self":
+            ok, d = _tls_probe(ib["sni"], addr="127.0.0.1", port=STEAL_PORT)
+            checks.append(_check(L(f"Свой сайт {ib['sni']} работает (сертификат Let's Encrypt)",
+                                   f"Own site {ib['sni']} works (Let's Encrypt certificate)"), ok, d,
+                                 L(f"Проверьте, что A-запись {ib['sni']} указывает на IP этого сервера и порт 80 открыт у хостера. "
+                                   "Сертификат выпускается за 1–2 минуты после сохранения. Лог: journalctl -u hidevp-caddy -n 30",
+                                   f"Check that the A record of {ib['sni']} points to this server's IP and port 80 is open at the hoster. "
+                                   "The certificate is issued 1–2 minutes after saving. Log: journalctl -u hidevp-caddy -n 30")))
+        elif ib.get("sni"):
             ok, d = _tls_probe(ib["sni"])
             checks.append(_check(L(f"Сайт-маскировка {ib['sni']} доступен (TLS 1.3)", f"Camouflage site {ib['sni']} is reachable (TLS 1.3)"), ok, d,
                                  L("Выберите другой сайт для маскировки (SNI) в настройках VPN",

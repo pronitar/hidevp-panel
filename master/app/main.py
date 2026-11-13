@@ -3,6 +3,8 @@ import contextlib
 import base64
 import json
 import re
+import socket
+import uuid
 import logging
 import secrets
 import time
@@ -544,13 +546,62 @@ def validate_vpn(d: dict, node_id: int, vid: int | None = None) -> dict:
     if path and not path.startswith("/"):
         path = "/" + path
     service = str(d.get("service_name") or "").strip() or (secrets.token_hex(5) if transport == "grpc" else "")
+    steal = bool(d.get("steal")) if "steal" in d else d.get("dest") == "self"
+    if protocol not in core.REALITY_PROTOCOLS:
+        steal = False
+    if steal:
+        if info.get("version") and not _ver_ok(info, "1.3.0"):
+            raise ApiError("Свой сайт (self-steal) требует work-панель 1.3.0 или новее — обновите её в разделе «Обновления»")
+        if "." not in sni or sni.replace(".", "").isdigit():
+            raise ApiError("Для своего сайта укажите домен, например nl.example.com")
+        own80 = (info.get("busy_ports") or {}).get("80")
+        if own80 and own80 != "hidevp-caddy":
+            raise ApiError(f"Порт 80 на сервере занят ({own80}) — он нужен для выпуска сертификата Let's Encrypt. "
+                           "Освободите порт 80 или используйте другой сервер")
+        try:
+            addrs = {a[4][0] for a in socket.getaddrinfo(sni, None)}
+        except OSError:
+            addrs = set()
+        node_ips = {x for x in (n.get("ip"), n.get("host")) if x}
+        if not addrs:
+            raise ApiError(f"Домен {sni} не найден в DNS — создайте A-запись на IP сервера {n.get('ip') or n['host']}")
+        if not addrs & node_ips and not d.get("force"):
+            raise ApiError(f"Домен {sni} указывает на {', '.join(sorted(addrs))}, а не на IP сервера "
+                           f"{n.get('ip') or n['host']} — исправьте A-запись (без проксирования Cloudflare)",
+                           extra={"code": "dns_mismatch", "can_force": True})
+    upstream_id = int(d.get("upstream_id") or 0)
+    if upstream_id:
+        up = q1("SELECT * FROM vpns WHERE id=?", (upstream_id,))
+        if not up or up["id"] == vid:
+            raise ApiError("Выберите VPN для выхода в каскаде")
+        if up.get("upstream_id"):
+            raise ApiError("Нельзя строить каскад через другой каскад — выберите обычное подключение")
+        if up["node_id"] == node_id:
+            raise ApiError("Каскад должен идти через другой сервер")
+        if not up["enabled"]:
+            raise ApiError(f"VPN «{up['name']}» выключен — включите его или выберите другой")
+        if info.get("version") and not _ver_ok(info, "1.3.0"):
+            raise ApiError("Каскад требует work-панель 1.3.0 или новее на входном сервере — обновите её")
+        upn = q1("SELECT * FROM nodes WHERE id=?", (up["node_id"],)) or {}
+        if not _ver_ok(json.loads(upn.get("info") or "{}"), "1.3.0"):
+            raise ApiError(f"Каскад требует work-панель 1.3.0 или новее на сервере «{upn.get('name', '?')}» — обновите её")
+        if (up.get("protocol") or "vless") == "hy2":
+            xv = re.search(r"(\d+\.\d+\.\d+)", info.get("xray") or "")
+            if xv and _vt(xv.group(1)) < _vt(core.HY2_MIN_XRAY):
+                raise ApiError(f"Выход через Hysteria2 требует Xray {core.HY2_MIN_XRAY} или новее на входном сервере")
+    if vid and not (1 if d.get("enabled", True) else 0):
+        used = q("SELECT name FROM vpns WHERE upstream_id=? AND enabled=1", (vid,))
+        if used:
+            raise ApiError("Это подключение используется как выход в каскаде: " + ", ".join(f"«{x['name']}»" for x in used)
+                           + " — сначала выключите или измените их")
     if protocol == "ss":
         sni, fp = "", ""
     elif protocol == "hy2":
         fp = ""
     label = PROTO_LABEL[protocol] + (f" {transport.upper()}" if protocol in core.REALITY_PROTOCOLS and transport != "tcp" else "")
     out.update(node_id=node_id, port=port, transport=transport, fingerprint=fp, sni=sni, protocol=protocol,
-               dest=f"{sni}:443" if sni else "", path=path, service_name=service,
+               dest="self" if steal else (f"{sni}:443" if sni else ""), path=path, service_name=service,
+               upstream_id=upstream_id,
                obfs_on=bool(d.get("obfs_on", bool(d.get("obfs")))),
                name=str(d.get("name") or "").strip()[:60] or f"{n['name']} · {label}",
                enabled=1 if d.get("enabled", True) else 0, sort=int(d.get("sort") or 0))
@@ -564,6 +615,8 @@ def vpn_secrets(vid: int, v: dict, regen: bool = False):
     if proto in core.REALITY_PROTOCOLS and (regen or not cur.get("private_key")):
         priv, pub = core.reality_keypair()
         ex("UPDATE vpns SET private_key=?, public_key=?, short_id=? WHERE id=?", (priv, pub, secrets.token_hex(4), vid))
+    if v.get("upstream_id") and (regen or not cur.get("bridge_uuid")):
+        ex("UPDATE vpns SET bridge_uuid=? WHERE id=?", (str(uuid.uuid4()), vid))
     if proto == "ss" and (regen or not cur.get("server_key")):
         ex("UPDATE vpns SET server_key=? WHERE id=?", (core.ss_server_key(), vid))
     if proto == "hy2":
@@ -582,9 +635,9 @@ async def vpns_list(request: Request):
         v = validate_vpn(d, int(d.get("node_id") or 0))
         await port_guard(v["node_id"], v["port"], None, bool(d.get("force")), v["protocol"])
         vid = ex("""INSERT INTO vpns(name,node_id,port,transport,sni,dest,fingerprint,path,service_name,enabled,sort,
-                    protocol,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    protocol,upstream_id,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                  (v["name"], v["node_id"], v["port"], v["transport"], v["sni"], v["dest"], v["fingerprint"],
-                  v["path"], v["service_name"], v["enabled"], v["sort"], v["protocol"], time.time()))
+                  v["path"], v["service_name"], v["enabled"], v["sort"], v["protocol"], v["upstream_id"], time.time()))
         vpn_secrets(vid, v, regen=True)
         request_sync()
         return ok(vpn_out(q1("SELECT * FROM vpns WHERE id=?", (vid,))))
@@ -597,6 +650,10 @@ async def vpn_one(request: Request):
     if not v:
         raise ApiError("VPN не найден", 404)
     if request.method == "DELETE":
+        used = q("SELECT name FROM vpns WHERE upstream_id=?", (vid,))
+        if used:
+            raise ApiError("Это подключение используется как выход в каскаде: " + ", ".join(f"«{x['name']}»" for x in used)
+                           + " — сначала удалите или измените их")
         ex("DELETE FROM vpns WHERE id=?", (vid,))
         request_sync()
         return ok()
@@ -608,9 +665,9 @@ async def vpn_one(request: Request):
                 or (nv["enabled"] and not v["enabled"])):
             await port_guard(nv["node_id"], nv["port"], vid, bool(d.get("force")), nv["protocol"])
         ex("""UPDATE vpns SET name=?,node_id=?,port=?,transport=?,sni=?,dest=?,fingerprint=?,path=?,
-              service_name=?,enabled=?,sort=?,protocol=? WHERE id=?""",
+              service_name=?,enabled=?,sort=?,protocol=?,upstream_id=? WHERE id=?""",
            (nv["name"], nv["node_id"], nv["port"], nv["transport"], nv["sni"], nv["dest"], nv["fingerprint"],
-            nv["path"], nv["service_name"], nv["enabled"], nv["sort"], nv["protocol"], vid))
+            nv["path"], nv["service_name"], nv["enabled"], nv["sort"], nv["protocol"], nv["upstream_id"], vid))
         vpn_secrets(vid, nv, regen=bool(d.get("regen_keys")))
         request_sync()
     return ok(vpn_out(q1("SELECT * FROM vpns WHERE id=?", (vid,))))
@@ -1183,7 +1240,7 @@ async def notify_update(st: dict):
 
 SETTING_KEYS = ("panel_title", "public_url", "bot_token", "admin_tg_ids", "support",
                 "default_traffic_limit_gb", "default_device_limit", "tg_route", "tg_node_id", "tg_proxy", "lang",
-                "auto_select")
+                "auto_select", "client_fragment")
 TG_KEYS = ("bot_token", "tg_route", "tg_node_id", "tg_proxy")
 
 
@@ -1198,7 +1255,7 @@ async def settings(request: Request):
                     v = v.rstrip("/")
                     if v and not v.startswith(("http://", "https://")):
                         raise ApiError("Публичный адрес должен начинаться с http:// или https://")
-                if k == "auto_select":
+                if k in ("auto_select", "client_fragment"):
                     v = "1" if v in ("1", "true", "True") else "0"
                 if k == "lang" and v not in ("ru", "en"):
                     raise ApiError("Неизвестное действие")
@@ -1255,7 +1312,7 @@ async def subscription(request: Request):
         headers["announce"] = "base64:" + base64.b64encode(
             f"Подписка неактивна: {core.STATUS_TEXT[core.user_status(u)]}".encode()).decode()
     ua = request.headers.get("user-agent", "").lower()
-    if (core.auto_select_on() and core.user_status(u) == "active" and links
+    if (core.json_sub_on() and core.user_status(u) == "active" and links
             and (any(k in ua for k in ("happ", "incy")) or request.query_params.get("format") == "json")):
         body_json = json.dumps(core.user_json(u, core.user_lang(u)), ensure_ascii=False)
         return Response(body_json, media_type="application/json; charset=utf-8", headers=headers)

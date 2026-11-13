@@ -427,6 +427,8 @@ remove_node() {
   has_node || { warn "$(m "Work-панель не установлена" "Work panel is not installed")"; return; }
   systemctl disable --now hidevp-node >/dev/null 2>&1
   rm -f /etc/systemd/system/hidevp-node.service
+  systemctl disable --now hidevp-caddy >/dev/null 2>&1
+  rm -rf /etc/systemd/system/hidevp-caddy.service /usr/local/lib/hidevp /var/lib/hidevp-caddy
   if confirm "$(m "Удалить и Xray-core?" "Remove Xray-core too?")"; then
     systemctl disable --now xray >/dev/null 2>&1
     bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ remove --purge >/dev/null 2>&1 \
