@@ -23,10 +23,19 @@ die()  { echo -e "\n!!! $*" >&2; exit 1; }
 port_busy() { ss -ltnH "( sport = :$1 )" | grep -q .; }
 free_port() { local p; while :; do p=$(shuf -i 20000-60000 -n 1); port_busy "$p" || { echo "$p"; return; }; done; }
 
+progress() { if [ -n "${HV_PROGRESS:-}" ]; then echo "@@P master $1"; fi; }
+need_pkgs() { local p; for p in "$@"; do dpkg -s "$p" >/dev/null 2>&1 || return 0; done; return 1; }
+progress 5
 say "$(m "Установка пакетов" "Installing packages")"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq || echo "!!! $(m "apt-get update завершился с ошибкой (сломанный сторонний репозиторий?) — продолжаю" "apt-get update failed (broken third-party repo?) — continuing")"
-apt-get install -y -qq python3 python3-venv python3-pip curl openssl iproute2 dnsutils >/dev/null
+PKGS=(python3 python3-venv python3-pip curl openssl iproute2 dnsutils)
+if need_pkgs "${PKGS[@]}"; then
+  apt-get update -qq || echo "!!! $(m "apt-get update завершился с ошибкой (сломанный сторонний репозиторий?) — продолжаю" "apt-get update failed (broken third-party repo?) — continuing")"
+  apt-get install -y -qq "${PKGS[@]}" >/dev/null
+else
+  echo "    $(m "Нужные пакеты уже установлены" "Required packages are already installed")"
+fi
+progress 20
 
 . "$SRC/ports.sh"
 NODE_STATE=/opt/hidevp-panel/node/data/state.json
@@ -43,9 +52,18 @@ rm -rf "$DEST/app" "$DEST/static"
 cp -r "$SRC/master/app" "$SRC/master/static" "$SRC/master/requirements.txt" "$DEST/"
 [ -n "$RELKEY" ] && [ ! -f "$DEST/app/release_key.pub" ] && echo "$RELKEY" > "$DEST/app/release_key.pub"
 cp "$SRC/VERSION" "$DEST/VERSION" 2>/dev/null || true
-[ -d "$DEST/venv" ] || python3 -m venv "$DEST/venv"
-"$DEST/venv/bin/pip" install -q --upgrade pip
-"$DEST/venv/bin/pip" install -q -r "$DEST/requirements.txt"
+progress 35
+REQ_SUM=$(sha256sum "$DEST/requirements.txt" | cut -c1-64)
+if [ ! -x "$DEST/venv/bin/python" ]; then
+  python3 -m venv "$DEST/venv"
+  "$DEST/venv/bin/pip" install -q --upgrade pip
+fi
+if [ "$(cat "$DEST/venv/.hidevp-req" 2>/dev/null)" != "$REQ_SUM" ]; then
+  say "$(m "Установка зависимостей Python" "Installing Python dependencies")"
+  "$DEST/venv/bin/pip" install -q -r "$DEST/requirements.txt"
+  echo "$REQ_SUM" > "$DEST/venv/.hidevp-req"
+fi
+progress 55
 
 cat > /usr/local/bin/hidevp-panel <<EOF
 #!/bin/bash
@@ -229,8 +247,10 @@ fi
 chmod 700 "$DEST/data" 2>/dev/null || true
 chmod 600 "$DEST"/data/panel.db* 2>/dev/null || true
 [ -d "$DEST/data/backups" ] && chmod -R go-rwx "$DEST/data/backups"
+progress 70
 systemctl restart hidevp-panel
 sleep 2
+progress 85
 systemctl is-active --quiet hidevp-panel || { journalctl -u hidevp-panel -n 30 --no-pager; die "$(m "Панель не запустилась (лог выше)." "The panel failed to start (log above).")"; }
 
 mkdir -p /opt/hidevp-panel; echo "$HV_LANG" > /opt/hidevp-panel/lang
@@ -256,6 +276,7 @@ if [ "$(readlink -f "${HV_ORIG_SRC:-$SRC}")" != "$STORE" ]; then
 fi
 chmod +x "$STORE/hidevp.sh"
 ln -sf "$STORE/hidevp.sh" /usr/local/bin/hidevp
+progress 100
 
 echo
 if [ "$FIRST" = 1 ]; then

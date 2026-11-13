@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.3.1"
+VERSION = "1.3.2"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -901,7 +901,7 @@ async def stats(request):
         scan_log()
         traffic = dict(PENDING)
         PENDING.clear()
-        return {"traffic": traffic, "online": online_ips()}
+        return {"traffic": traffic, "online": online_ips(), "version": VERSION}
     return JSONResponse(await asyncio.to_thread(work))
 
 
@@ -1001,7 +1001,7 @@ def self_update(data_b64: str, sha: str) -> dict:
         raise
     lf = Path("/opt/hidevp-panel/lang")
     lang = "en" if lf.exists() and lf.read_text().strip() == "en" else "ru"
-    script = (f"cd {src} && HV_LANG={lang} bash install-node.sh </dev/null > {UPDATE_LOG} 2>&1; "
+    script = (f"cd {src} && HV_PROGRESS=1 HV_LANG={lang} bash install-node.sh </dev/null > {UPDATE_LOG} 2>&1; "
               f"echo \"__HV_DONE__ $?\" >> {UPDATE_LOG}; rm -rf {tmp}")
     r = run(["systemd-run", "--no-block", "--unit", f"hidevp-node-update-{int(time.time())}", "--collect",
              "--property=Type=oneshot", "bash", "-c", script])

@@ -16,10 +16,19 @@ DEST=/opt/hidevp-panel/node
 [ "$(id -u)" -eq 0 ] || { echo "$(m "Запустите от root: sudo bash $0" "Run as root: sudo bash $0")"; exit 1; }
 command -v apt-get >/dev/null || { echo "$(m "Нужна Ubuntu 22.04+/Debian 11+" "Ubuntu 22.04+/Debian 11+ required")"; exit 1; }
 
+progress() { if [ -n "${HV_PROGRESS:-}" ]; then echo "@@P node $1"; fi; }
+need_pkgs() { local p; for p in "$@"; do dpkg -s "$p" >/dev/null 2>&1 || return 0; done; return 1; }
+progress 5
 echo ">>> $(m "Установка пакетов" "Installing packages")"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq || echo "!!! $(m "apt-get update завершился с ошибкой (сломанный сторонний репозиторий?) — продолжаю" "apt-get update failed (broken third-party repo?) — continuing")"
-apt-get install -y -qq python3 python3-venv python3-pip curl openssl iproute2 unzip >/dev/null
+PKGS=(python3 python3-venv python3-pip curl openssl iproute2 unzip)
+if need_pkgs "${PKGS[@]}"; then
+  apt-get update -qq || echo "!!! $(m "apt-get update завершился с ошибкой (сломанный сторонний репозиторий?) — продолжаю" "apt-get update failed (broken third-party repo?) — continuing")"
+  apt-get install -y -qq "${PKGS[@]}" >/dev/null
+else
+  echo "    $(m "Нужные пакеты уже установлены" "Required packages are already installed")"
+fi
+progress 20
 
 . "$SRC/ports.sh"
 check_other_vpn
@@ -39,6 +48,7 @@ touch /var/log/xray/access.log /var/log/xray/error.log
 chown -R "$XUSER": /var/log/xray 2>/dev/null || chown -R nobody /var/log/xray
 chmod 750 /var/log/xray; chmod 640 /var/log/xray/*.log
 
+progress 35
 echo ">>> $(m "Включение BBR" "Enabling BBR")"
 grep -q "tcp_congestion_control=bbr" /etc/sysctl.conf || {
   echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
@@ -51,9 +61,18 @@ PUBLIC_IP=$(curl -4 -s --max-time 8 https://api.ipify.org || true)
 
 mkdir -p "$DEST/data"
 cp "$SRC/node/agent.py" "$SRC/node/nodectl.py" "$SRC/node/requirements.txt" "$DEST/"
-python3 -m venv "$DEST/venv"
-"$DEST/venv/bin/pip" install -q --upgrade pip
-"$DEST/venv/bin/pip" install -q -r "$DEST/requirements.txt"
+progress 45
+REQ_SUM=$(sha256sum "$DEST/requirements.txt" | cut -c1-64)
+if [ ! -x "$DEST/venv/bin/python" ]; then
+  python3 -m venv "$DEST/venv"
+  "$DEST/venv/bin/pip" install -q --upgrade pip
+fi
+if [ "$(cat "$DEST/venv/.hidevp-req" 2>/dev/null)" != "$REQ_SUM" ]; then
+  echo ">>> $(m "Установка зависимостей Python" "Installing Python dependencies")"
+  "$DEST/venv/bin/pip" install -q -r "$DEST/requirements.txt"
+  echo "$REQ_SUM" > "$DEST/venv/.hidevp-req"
+fi
+progress 65
 
 if [ -f "$DEST/data/node.json" ]; then
   PORT=$("$DEST/venv/bin/python" -c "import json;print(json.load(open('$DEST/data/node.json'))['port'])")
@@ -120,8 +139,10 @@ fi
 systemctl daemon-reload
 systemctl enable hidevp-node >/dev/null 2>&1
 chmod 700 "$DEST/data"; chmod 600 "$DEST/data/node.json" "$DEST/data/key.pem" 2>/dev/null || true
+progress 80
 systemctl restart hidevp-node
 sleep 2
+progress 90
 
 mkdir -p /opt/hidevp-panel; echo "$HV_LANG" > /opt/hidevp-panel/lang
 STORE=/opt/hidevp-panel/src
@@ -146,6 +167,7 @@ if [ "$(readlink -f "${HV_ORIG_SRC:-$SRC}")" != "$STORE" ]; then
 fi
 chmod +x "$STORE/hidevp.sh"
 ln -sf "$STORE/hidevp.sh" /usr/local/bin/hidevp
+progress 100
 
 echo
 report_vpn_ports

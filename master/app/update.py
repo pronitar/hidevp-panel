@@ -52,10 +52,13 @@ def root_dir() -> Path:
 
 
 def installed_version() -> str:
-    for p in (APP_DIR.parents[1] / "src" / "VERSION", APP_DIR.parent / "VERSION", APP_DIR.parents[1] / "VERSION"):
+    for p in (APP_DIR.parent / "VERSION", APP_DIR.parents[1] / "src" / "VERSION", APP_DIR.parents[1] / "VERSION"):
         if p.exists() and p.read_text().strip():
             return p.read_text().strip()
     return "0"
+
+
+RUNNING = installed_version()
 
 
 def _canon(manifest: dict) -> bytes:
@@ -114,7 +117,7 @@ def check() -> dict:
 def state() -> dict:
     m = STATE.get("latest") or {}
     st = {k: v for k, v in STATE.items() if k != "latest"}
-    st.update(installed=installed_version(), latest_version=m.get("version", ""), latest_agent=m.get("agent_version", ""),
+    st.update(installed=installed_version(), running=RUNNING, latest_version=m.get("version", ""), latest_agent=m.get("agent_version", ""),
               notes=m.get("notes", ""), created=m.get("created", 0), size=m.get("size", 0),
               source=STATE.get("source", ""), signed=public_key() is not None,
               available=bool(m) and vt(m.get("version")) > vt(installed_version()))
@@ -327,10 +330,10 @@ def start_master_update(version: str | None = None, rollback: bool = False) -> d
     tmp, src = _extract(pkg)
     lf = APP_DIR.parents[1] / "lang"
     lang = "en" if lf.exists() and lf.read_text().strip() == "en" else "ru"
-    node = (f"HV_LANG={lang} bash install-node.sh </dev/null >> {UPDATE_LOG} 2>&1; "
+    node = (f"HV_PROGRESS=1 HV_LANG={lang} bash install-node.sh </dev/null >> {UPDATE_LOG} 2>&1; "
             if (APP_DIR.parents[1] / "node" / "agent.py").exists() else "")
     store = APP_DIR.parents[1] / "src"
-    script = (f"cd {src} && : > {UPDATE_LOG} && {node}HV_LANG={lang} DOMAIN= bash install-master.sh </dev/null >> {UPDATE_LOG} 2>&1; "
+    script = (f"cd {src} && : > {UPDATE_LOG} && {node}HV_PROGRESS=1 HV_LANG={lang} DOMAIN= bash install-master.sh </dev/null >> {UPDATE_LOG} 2>&1; "
               f"rc=$?; if [ $rc -ne 0 ] && [ -f {store}/install-master.sh ]; then echo __HV_RESTORE__ >> {UPDATE_LOG}; "
               f"(cd {store} && HV_LANG={lang} DOMAIN= bash install-master.sh </dev/null >> {UPDATE_LOG} 2>&1) "
               f"&& echo __HV_RESTORED__ >> {UPDATE_LOG}; fi; echo \"__HV_DONE__ $rc\" >> {UPDATE_LOG}; rm -rf {tmp}")

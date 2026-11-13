@@ -188,27 +188,24 @@ _VER_CACHE: dict = {}
 
 
 def panel_versions() -> dict:
-    if _VER_CACHE.get("at", 0) > time.time() - 60:
-        return _VER_CACHE
     from pathlib import Path
-    import re as _re
-    import socket
     root = Path(__file__).resolve().parents[2]
     src = root / "src" if (root / "src" / "VERSION").exists() else root
-    ver = (src / "VERSION").read_text().strip() if (src / "VERSION").exists() else "?"
     agent = ""
     try:
-        m = _re.search(r'^VERSION = "(.+?)"', (src / "node" / "agent.py").read_text(), _re.M)
+        m = re.search(r'^VERSION = "(.+?)"', (src / "node" / "agent.py").read_text(), re.M)
         agent = m.group(1) if m else ""
     except OSError:
         pass
-    host = _re.sub(r"^https?://", "", core.public_url()).split("/")[0].split(":")[0].strip("[]")
-    ips = set()
-    try:
-        ips = {a[4][0] for a in socket.getaddrinfo(host, None)} if host else set()
-    except OSError:
-        pass
-    _VER_CACHE.update(at=time.time(), master=ver, agent=agent, master_ips=ips)
+    _VER_CACHE.update(master=update.installed_version(), agent=agent)
+    if _VER_CACHE.get("at", 0) < time.time() - 300:
+        host = re.sub(r"^https?://", "", core.public_url()).split("/")[0].split(":")[0].strip("[]")
+        ips = set()
+        try:
+            ips = {a[4][0] for a in socket.getaddrinfo(host, None)} if host else set()
+        except OSError:
+            pass
+        _VER_CACHE.update(at=time.time(), master_ips=ips)
     return _VER_CACHE
 
 
@@ -1220,6 +1217,9 @@ async def updates_overview(request: Request):
     st = {**st, "error": tr(st.get("error", ""))}
     rel = await asyncio.to_thread(update.releases, force)
     pv = panel_versions()
+    stale = [n for n in q("SELECT * FROM nodes") if force or json.loads(n.get("info") or "{}").get("updating")]
+    if stale:
+        await asyncio.gather(*(_live_info(n, timeout=5) for n in stale))
     items = []
     for n in q("SELECT * FROM nodes ORDER BY id"):
         d = node_out(n)

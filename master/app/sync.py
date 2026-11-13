@@ -103,6 +103,11 @@ async def sync_all():
     for _node, res in results:
         if not res:
             continue
+        info = json.loads(_node.get("info") or "{}")
+        if res.get("version") and (res["version"] != info.get("version") or info.get("updating")):
+            info.pop("updating", None)
+            info["version"] = res["version"]
+            ex("UPDATE nodes SET info=? WHERE id=?", (json.dumps(info), _node["id"]))
         for email, d in (res.get("traffic") or {}).items():
             t = traffic.setdefault(email, [0, 0])
             t[0] += int(d.get("up", 0))
