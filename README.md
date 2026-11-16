@@ -2,283 +2,320 @@
   <img src="docs/logo.svg" height="80" alt="HideVP">
 </p>
 
-<p align="center"><b>Панель управления VPN-сервисом на Xray</b></p>
+<p align="center"><b>VPN service management panel on Xray</b></p>
 
 <p align="center">
-  <b>Русский</b> · <a href="README.en.md">English</a>
+  <b>English</b> · <a href="README.ru.md">Русский</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/pronitar/hidevp-panel/releases/latest"><img src="https://img.shields.io/github/v/release/pronitar/hidevp-panel?label=%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F" alt="Версия"></a>
+  <a href="https://github.com/pronitar/hidevp-panel/releases/latest"><img src="https://img.shields.io/github/v/release/pronitar/hidevp-panel?label=version" alt="Version"></a>
   <img src="https://img.shields.io/badge/Xray-VLESS%20%2B%20Reality-6d28d9" alt="Xray VLESS + Reality">
   <img src="https://img.shields.io/badge/Ubuntu%20%7C%20Debian-supported-2563eb" alt="Ubuntu | Debian">
 </p>
 
-**HideVP Panel** — персональная панель для запуска собственного VPN-сервиса: от одного сервера до сети узлов в разных странах.
+**HideVP Panel** is a personal panel for running your own VPN service — from a single server to a network of nodes in different countries.
 
-- 🖥 **Один центр управления.** Master-панель ставится на основной сервер, work-панели — на остальные. Все серверы, подключения и пользователи настраиваются из одной админки.
-- ⚙️ **Удобный интерфейс.** Понятная админка на русском и английском, много настроек и функций, обновление и откат версий в один клик.
-- 🤖 **Telegram-бот для пользователей.** Встроен и настраивается прямо в панели: регистрация, оплата, продление, промокоды, уведомления.
-- 💳 **Оплата подписки.** Telegram Stars, криптовалюта (CryptoBot), банковская карта и перевод по реквизитам.
+- 🖥 **One control center.** The master panel goes on the main server, work panels on the others. All servers, connections and users are managed from a single admin panel.
+- ⚙️ **Convenient interface.** A clear admin panel in Russian and English, lots of settings and features, one-click updates and rollbacks.
+- 🤖 **Telegram bot for users.** Built in and configured right in the panel: sign-up, payment, renewal, promo codes, notices.
+- 💳 **Subscription payments.** Telegram Stars, cryptocurrency (CryptoBot), bank card and bank transfer.
 
-Протоколы: VLESS и Trojan с маскировкой Reality, Shadowsocks-2022 и Hysteria2. Пользователи подключаются через **Happ** или **INCY** по ссылке подписки или со своей личной страницы.
+Protocols: VLESS and Trojan with Reality disguise, Shadowsocks-2022 and Hysteria2. Users connect with **Happ** or **INCY** using a subscription link or their personal page.
 
 ```
             ┌──────────────────── master ────────────────────┐
- Админ ───► │ Админка · Telegram-бот · личные страницы /u/…   │ ◄─── Пользователи
-            │ подписки /sub/… · SQLite · синхронизация       │      (Happ / INCY)
+ Admin ───► │ Admin panel · Telegram bot · personal pages /u/ │ ◄─── Users
+            │ subscriptions /sub/… · SQLite · sync           │      (Happ / INCY)
             └───────┬──────────────────────────┬─────────────┘
-           HTTPS + API-ключ             HTTPS + API-ключ
+           HTTPS + API key              HTTPS + API key
                     ▼                          ▼
           ┌──── work ────┐             ┌──── work ────┐
-          │ агент + Xray │             │ агент + Xray │ ◄── VPN-трафик
+          │ agent + Xray │             │ agent + Xray │ ◄── VPN traffic
           └──────────────┘             └──────────────┘
 ```
 
-**Протоколы** (все работают в Happ и INCY):
+## Features
 
-| Протокол | Маскировка | Порт | Когда выбирать |
+### Servers and VPN
+- **Nodes.** Connect a server with a `NODE-…` key: country flag, panel versions, CPU/memory/disk load, the "Check" diagnostics (Xray, ports, firewall, camouflage site, internet access, clock).
+- **VPN connections.** VLESS, Trojan, Shadowsocks-2022 and Hysteria2, several per server. A free port is picked automatically and checked from outside. Users are added and removed on the fly without restarting Xray.
+- **Auto server selection.** "⚡ Auto" in Happ and INCY connects to the fastest working server and switches when one stops responding.
+- **Cascade and own site.** Forward traffic through a server in Russia; disguise Reality as your own domain with an automatic Let's Encrypt certificate.
+- **SOCKS5 for the administrator.** A `socks5://` link, an app import link and a Telegram proxy link for any server. Never given to users.
+
+### Users and payments
+- **Users.** Fixed-term or lifetime subscriptions, traffic and device limits, torrent blocking, traffic reset, link reissue, Telegram messages, payment history.
+- **Plans.** Terms from 1 to 24 months, prices in Telegram Stars and in ₽, $, €, ₸, ₴, Br.
+- **Payment methods.** Telegram Stars, bank card (Telegram payment provider), CryptoBot, bank transfer with unique payment codes confirmed by the administrator.
+- **Promo codes.** 1–100 % discount, plans, validity, usage limits, single- or multi-use, new users only.
+- **Notices.** Maintenance and news with dates and an audience; shown on the personal page, in the bot and in the apps.
+- **Statistics.** Revenue, payments and users for any period, charts, CSV export.
+
+### Telegram bot and website
+- **Bot for users.** Sign-up, payment, renewal, promo codes, link reissue. Buttons, texts and their order are configurable; "Clean chat" mode. Works from Russia via a foreign server or a proxy.
+- **Bot for administrators.** Notifications about payments, new users, transfers to confirm and new panel versions.
+- **Website.** Phone sign-in with a code from the bot, a personal page with a QR code, renewal and "Add to Happ / INCY" buttons.
+
+### Happ and INCY
+- Subscription name, announcement with emoji, captions under servers, support and website buttons, auto-update interval, ping method, sorting, auto-connect, pinning, expiry warning, Happ Provider ID.
+
+### Administration
+- **Updates.** Versions of all panels on one page, one-click update with a progress bar, rollback. Packages are signed with Ed25519.
+- **Backups.** Automatic or manual, full or selective, restore by merging or replacing.
+- **Documentation.** A searchable "Documentation" tab right in the admin panel.
+- Admin panel, bot and website in English and Russian; four admin themes.
+
+## Protocols and encryption
+
+All protocols work in Happ and INCY. Keys and certificates are generated automatically.
+
+| Protocol | Disguise | Port | When to choose |
 |---|---|---|---|
-| VLESS + Reality (TCP + Vision, XHTTP, gRPC) | под реальный сайт, без своего домена и сертификата | TCP | основной вариант |
-| Trojan + Reality (TCP, XHTTP, gRPC) | так же, как VLESS | TCP | запасной вариант с той же маскировкой |
-| Shadowsocks-2022 | нет, трафик выглядит как случайные данные | TCP и UDP | простой и быстрый, для стран без жёстких блокировок |
-| Hysteria2 | под HTTP/3-сайт; по желанию обфускация Salamander | UDP | высокая скорость на плохих и мобильных сетях |
+| VLESS + Reality (TCP + Vision, XHTTP, gRPC) | as a real website, no own domain or certificate | TCP | the main option |
+| Trojan + Reality (TCP, XHTTP, gRPC) | same as VLESS | TCP | a fallback with the same disguise |
+| Shadowsocks-2022 | none, traffic looks like random data | TCP and UDP | simple and fast, for countries without strict blocking |
+| Hysteria2 | as an HTTP/3 website; optional Salamander obfuscation | UDP | high speed on poor and mobile networks |
 
-Hysteria2 требует Xray 26.3.27 или новее на узле — установщик ставит последнюю версию.
+Hysteria2 needs Xray 26.3.27 or newer on the node — the installer sets up the latest version.
 
-## Возможности
+## Camouflage methods
 
-- **Серверы.** Подключение узла по ключу `NODE-…`, флаг страны, версии панелей, нагрузка CPU/память/диск, кнопка «Проверить» (Xray, порты, фаервол, сайт маскировки, выход в интернет, время).
-- **VPN-подключения.** VLESS, Trojan, Shadowsocks-2022 и Hysteria2, несколько подключений на сервере. Свободный порт подставляется сам, панель проверяет, что порт не занят и доступен снаружи. Ключи и сертификаты создаются автоматически. Добавление и удаление пользователей применяется на лету, без перезапуска Xray — у остальных связь не прерывается.
-- **Автовыбор сервера.** Включается одной галочкой на странице VPN: в Happ и INCY первым в списке появляется «⚡ Автовыбор», который подключается к самому быстрому доступному серверу и сам переключается, если сервер перестал отвечать.
-- **SOCKS5 для администратора.** На карточке сервера кнопка «SOCKS5» выпускает ссылку с логином и паролем: `socks5://`, ссылку для импорта в приложения и прокси для Telegram. Пользователям она не выдаётся. Нужна work-панель 1.2.3+.
-- **Каскад.** VPN на сервере в России, который пересылает трафик на зарубежный сервер: для оператора это соединение внутри страны. Выбирается в настройках VPN: «Выход в интернет → Через …».
-- **Свой сайт (self-steal).** Reality маскируется под ваш собственный домен: панель сама ставит Caddy, получает сертификат Let's Encrypt и показывает простую страницу всем, кто проверяет сервер. Нужны A-запись домена на IP сервера и свободный порт 80 (или занятый nginx master-панели — тогда панель сама добавит настройку в nginx).
-- **Российские сайты маскировки** для серверов в России и белых списков, **фрагментация TLS** для Happ и INCY (галочка на странице VPN).
-- **Маскировка самих серверов.** Сайт-заглушка на главной странице домена (вход пользователей — по секретному адресу), неизвестные адреса отвечают как обычный nginx, а порт управления work-панелей закрыт для всех, кроме IP master-панели. Настройки → «Маскировка серверов»; установщик предлагает включить заглушку сразу.
-- **Пользователи.** Срок или бессрочная подписка, лимиты трафика и устройств, блокировка торрентов, сброс трафика, перевыпуск ссылок (пользователь может сделать это и сам в боте), сообщение в Telegram, история оплат. Ссылка подписки работает в Happ и INCY.
-- **Тарифы и оплата.** Сроки 1–24 месяца. Цены в звёздах и в валюте (₽, $, €, ₸, ₴, Br). Способы: звёзды Telegram, карта (провайдер Telegram), CryptoBot, перевод по реквизитам с подтверждением администратором и уникальными кодами платежа.
-- **Промокоды.** Скидка 1–100 %, тарифы, срок, лимит использований, одноразовые и многоразовые, только для новых.
-- **Уведомления.** Технические работы и новости с датой начала и окончания и выбором аудитории (все, с активной или с истёкшей подпиской). Показ на личной странице, в боте и в приложениях, рассылка в Telegram.
-- **Telegram-бот.** Настраиваемые кнопки, тексты и их порядок, режим «Чистый чат», уведомления администраторам. Работает из России через зарубежный сервер или прокси.
-- **Статистика.** Выручка, оплаты и пользователи за период, фильтры, графики, выгрузка в CSV.
-- **Резервные копии.** Автоматические (раз в день, неделю или месяц), полные или выборочные, восстановление с объединением или заменой.
-- **Обновления.** Версии всех панелей на одной странице, обновление одной кнопкой, откат на прошлую версию. Пакеты подписаны Ed25519.
-- **Сайт.** Вход по номеру телефона (код приходит в бота), личная страница с QR-кодом, продлением и кнопками «Добавить в Happ / INCY».
-- **Настройка приложений Happ и INCY.** Название подписки, объявление с эмодзи, подписи под серверами, кнопки поддержки и сайта, интервал автообновления, способ пинга, сортировка, автоподключение, закрепление подписки, предупреждение об окончании, Happ Provider ID.
-- **Документация.** Вкладка «Документация» в админке: установка, протоколы и шифрование, маскировка, бот, оплаты, обновления, решение проблем, с поиском.
-- Админка, бот и сайт на русском и английском. В админке 4 темы оформления.
+The most reliable setup is several different connections in one subscription plus **Auto server selection**: when the carrier blocks one, the app moves to another by itself.
 
-## Требования
+| Method | Protects against | How to enable |
+|---|---|---|
+| **Reality** | DPI: traffic looks like a visit to a real website (microsoft.com, apple.com…) | VLESS or Trojan, pick a camouflage site (SNI) |
+| **Own site (self-steal)** | Checks that the site matches the server IP | SNI "Own site on this server" + a domain with an A record; Caddy and the certificate are set up automatically |
+| **Russian camouflage sites** | Blocking of foreign SNI, whitelists | SNI from the "Russian sites" group, for servers in Russia |
+| **Cascade** | Blocking by foreign hosting IP, mobile whitelists | A VPN on a Russian server with "Internet exit → Via …" a foreign one |
+| **TLS fragmentation** | Blocking by site name (SNI) in the first packet | Checkbox on the VPN page (Happ and INCY) |
+| **XHTTP / gRPC** | Detection by traffic behaviour | Transport in the VPN settings |
+| **Hysteria2 + Salamander** | TCP throttling, poor mobile networks | Hysteria2 protocol, "Salamander obfuscation" checkbox |
+| **Stub site** | Probing the panel's domain | Settings → "Server camouflage": the home page shows an ordinary website, user sign-in moves to a secret address, unknown addresses answer like plain nginx |
+| **Hidden node API** | Scanning servers for the panel | The management port is open only to the master panel's IP (on by default) |
 
-- VPS с **Ubuntu 22.04/24.04** или **Debian 11/12**, доступ root по SSH:
-  - один сервер под master-панель (он же может быть узлом VPN);
-  - серверы-узлы в нужных странах.
-- Узлам нужен доступ к github.com: оттуда устанавливается Xray-core.
-- Бот Telegram (создаётся у @BotFather).
-- Желательно — домен с A-записью на IP master-сервера. Без домена админка работает по `http://IP:порт`, пароль передаётся без шифрования.
+**Recommended setups:**
 
-## Установка
+| Situation | Connections in the subscription |
+|---|---|
+| One foreign server with a domain | VLESS + XHTTP + own site; VLESS + TCP + another site; Hysteria2 + Salamander |
+| One foreign server, no domain | VLESS + XHTTP + a site of the same hoster; Trojan + TCP + another site; Hysteria2 |
+| Foreign + Russian server | All of the above + cascade: VLESS + XHTTP on the Russian server, SNI ya.ru or vk.com, exit via the foreign one |
+| Mobile whitelists | Cascade via the Russian server; direct connections for Wi-Fi |
 
-### 1. Запуск меню
+Step-by-step instructions are in the admin panel: "Documentation" → "Camouflage against blocking".
 
-Одной командой на каждом сервере:
+## Requirements
+
+- A VPS with **Ubuntu 22.04/24.04** or **Debian 11/12** and root SSH access:
+  - one server for the master panel (it can also be a VPN node);
+  - node servers in the countries you need.
+- Nodes need access to github.com: Xray-core is installed from there.
+- A Telegram bot (created with @BotFather).
+- Recommended: a domain with an A record pointing to the master server's IP. Without a domain the admin panel works over `http://IP:port`, and the password is sent unencrypted.
+
+## Installation
+
+### 1. Start the menu
+
+One command on each server:
 
 ```bash
 bash <(curl -fsSL https://github.com/pronitar/hidevp-panel/releases/latest/download/install.sh)
 ```
 
-Вручную: скачайте `hidevp-panel-<версия>.zip` со страницы [Releases](https://github.com/pronitar/hidevp-panel/releases), загрузите в `/root` и выполните:
+Manually: download `hidevp-panel-<version>.zip` from [Releases](https://github.com/pronitar/hidevp-panel/releases), upload it to `/root` and run:
 
 ```bash
 cd /root && unzip -o hidevp-panel-*.zip && bash hidevp-panel/hidevp.sh
 ```
 
-При первом запуске меню спросит язык: 1 — English, 2 — Русский.
+On first start the menu asks for a language: 1 — English, 2 — Русский.
 
-### 2. Master-панель
+### 2. Master panel
 
-В меню выберите **«Установить master-панель»** (или «Установить обе», если этот сервер будет и узлом VPN). Меню спросит домен:
+Choose **"Install the master panel"** in the menu (or "Install both on this server" if the server will also be a VPN node). The menu asks for a domain:
 
-- **есть домен** — введите его (A-запись должна уже указывать на сервер). Если на сервере работает nginx, добавится отдельный сайт и сертификат certbot, другие сайты не затрагиваются. Без nginx ставится Caddy;
-- **нет домена** — нажмите Enter, панель встанет на `http://IP:случайный_порт`. Домен можно подключить позже: `hidevp` → «Домен и сертификат».
+- **you have a domain** — enter it (the A record must already point to the server). If nginx is running on the server, a separate site and a certbot certificate are added; other sites are not touched. Without nginx, Caddy is installed;
+- **no domain** — press Enter; the panel runs on `http://IP:random_port`. A domain can be added later: `hidevp` → "Domain & certificate".
 
-В конце будут показаны адрес админки, логин и пароль — сохраните их.
+At the end the admin panel address, login and password are shown — save them.
 
-### 3. Work-панели (узлы)
+### 3. Work panels (nodes)
 
-На каждом VPN-сервере выберите **«Установить work-панель»**. Установятся Xray-core и агент, включится BBR. В конце будут таблица свободных портов для VPN и **ключ `NODE-…`** для подключения к master.
+On each VPN server choose **"Install the work panel"**. Xray-core and the agent are installed and BBR is enabled. At the end you get a table of free VPN ports and a **`NODE-…` key** to connect the node to the master.
 
-Если master установлен с доменом и на этом же сервере будет VPN, порт 443 занят сайтом — для VPN берите другой (например, 8443).
+If the master is installed with a domain and the same server will run a VPN, port 443 is taken by the website — use another port for the VPN (for example, 8443).
 
-### 4. Первая настройка
+### 4. First setup
 
-1. **Серверы → Подключить сервер** — вставьте ключ `NODE-…` каждого узла.
-2. **VPN → Создать** — выберите сервер, протокол и транспорт; порт подставится сам.
-3. **Telegram-бот** — токен от @BotFather, подключение администраторов (кнопка «Подключить мой Telegram»). Если master в России — «Подключение к Telegram» → «Через подключённый сервер» и зарубежный узел.
-4. **Тарифы и оплата** — сроки, цены и способы оплаты.
-5. **Настройки** — название сервиса, публичный адрес, контакт поддержки, лимиты по умолчанию.
-6. **«Перезагрузить панель»** вверху, затем **«Проверить»** у каждого сервера — все пункты должны быть зелёными.
-7. **Резервные копии** — включите автоматическое создание.
+1. **Servers → Connect server** — paste the `NODE-…` key of each node.
+2. **VPN → Create** — choose a server, a protocol and a transport; the port is filled in automatically.
+3. **Telegram bot** — the token from @BotFather, link administrators ("Link my Telegram" button). If the master is in Russia: "Telegram connection" → "Via a connected server" and pick a foreign node.
+4. **Plans & payments** — terms, prices and payment methods.
+5. **Settings** — service name, public address, support contact, default limits.
+6. **"Reload panel"** at the top, then **"Check"** on each server — every item should be green.
+7. **Backups** — turn on automatic backups.
 
-### 5. Порты
+### 5. Ports
 
-| Сервер | Порт | Назначение |
+| Server | Port | Purpose |
 |---|---|---|
-| master | 80 и 443 | с доменом: сайт, админка, подписки |
-| master | из установки | без домена: сайт, админка, подписки |
-| узел | из установки | API work-панели (доступ только по ключу) |
-| узел | порты ваших VPN (443, 8443…) | VPN-трафик: TCP; для Hysteria2 — UDP, для Shadowsocks — TCP и UDP |
+| master | 80 and 443 | with a domain: website, admin panel, subscriptions |
+| master | from installation | without a domain: website, admin panel, subscriptions |
+| node | from installation | work panel API (key access only) |
+| node | your VPN ports (443, 8443…) | VPN traffic: TCP; UDP for Hysteria2, TCP and UDP for Shadowsocks |
 
-Если у хостера есть внешний фаервол (security groups), откройте там эти порты. В `ufw` установщики и панель открывают порты сами.
+If your hosting provider has an external firewall (security groups), open these ports there. The installers and the panel open ports in `ufw` themselves.
 
-## Меню `hidevp`
+## The `hidevp` menu
 
-Команда `hidevp` открывает меню с любого места. Пункты зависят от того, что установлено на сервере.
+The `hidevp` command opens the menu from anywhere. The items depend on what is installed on the server.
 
-| Пункт | Что делает |
+| Item | What it does |
 |---|---|
-| Данные входа в админку | Адрес админки и логин |
-| Изменить данные админки | Логин, пароль, секретный путь, порт, название |
-| Домен и сертификат | Подключить или сменить домен, перевыпустить сертификат, вернуться на IP |
-| Показать / Перевыпустить ключ узла | Ключ `NODE-…` для master-панели |
-| Xray: перезапуск / переустановка | Перезапуск, обновление Xray-core, исправление прав на логи |
-| Перезапустить службы / Логи | Перезапуск панелей и просмотр журналов |
-| Обновить панель | Проверка версий и обновление (см. ниже) |
-| Откат на прошлую версию | Установка более старой версии |
-| Переустановить / Удалить панель | С сохранением данных или начисто; перед удалением база копируется в `/root` |
-| Язык / Language | Русский или English |
+| Admin login details | Admin panel address and login |
+| Change admin credentials/settings | Login, password, secret path, port, name |
+| Domain & certificate | Add or change a domain, reissue the certificate, go back to IP |
+| Show / Reissue node key | The `NODE-…` key for the master panel |
+| Xray: restart / reinstall | Restart, update Xray-core, fix log permissions |
+| Restart services / Logs | Restart the panels and view logs |
+| Update the panel | Version check and update (see below) |
+| Roll back to an older version | Install an older version |
+| Reinstall / Remove the panel | Keeping data or from scratch; the database is copied to `/root` before removal |
+| Language / Язык | English or Russian |
 
-Команды без меню:
+Commands without the menu:
 
 ```
-hidevp-panel info                     # адрес админки и логин
-hidevp-panel reset-admin              # новые логин и пароль
+hidevp-panel info                     # admin panel address and login
+hidevp-panel reset-admin              # new login and password
 hidevp-panel set-admin --login L --password P
-hidevp-node key | rotate              # показать или перевыпустить ключ узла
-journalctl -u hidevp-panel -f         # лог master-панели
-journalctl -u hidevp-node -f          # лог work-панели
-journalctl -u xray -f                 # лог Xray
+hidevp-node key | rotate              # show or reissue the node key
+journalctl -u hidevp-panel -f         # master panel log
+journalctl -u hidevp-node -f          # work panel log
+journalctl -u xray -f                 # Xray log
 ```
 
-## Обновление и откат
+## Updates and rollback
 
-Версия master-панели показана в админке справа вверху. Когда выходит новая версия, рядом появляется зелёный значок ↑, а администраторам приходит сообщение в Telegram. Master- и work-панель нумеруются независимо.
+The master panel version is shown at the top right of the admin panel. When a new version is released, a green ↑ badge appears next to it and administrators get a Telegram message. The master and work panels are versioned independently.
 
-Новые версии публикуются только в [релизах GitHub](https://github.com/pronitar/hidevp-panel/releases); панели проверяют их раз в 6 часов. Серверу нужен доступ к github.com — если его нет, загрузите архив релиза в `/root` и выберите `hidevp` → «Обновить панель».
+New versions are published only in [GitHub releases](https://github.com/pronitar/hidevp-panel/releases); panels check for them every 6 hours. The server needs access to github.com — if it has none, upload the release archive to `/root` and choose `hidevp` → "Update the panel".
 
-**Админка → «Обновления»:**
-- **Master-панель** — кнопка «Обновить master-панель до …». Панель перезапустится примерно за минуту; work-панель на этом же сервере обновится вместе с ней.
-- **Серверы** — версия work-панели на каждом сервере и кнопка «Обновить до …». Клиенты VPN не отключаются.
-- **Ход установки** показывается в отдельном окне по шагам с журналом; пока идёт обновление, остальная админка заблокирована. Если установка master-панели не удалась, автоматически возвращается предыдущая версия.
-- **Откат** — «Откатить…» у master-панели и «Другая версия…» у сервера. Откат выполняется только на свой страх и риск: старая версия может не поддерживать данные новой. Перед откатом master-панели база сохраняется автоматически.
+**Admin panel → "Updates":**
+- **Master panel** — the "Update master panel to …" button. The panel restarts in about a minute; a work panel on the same server is updated together with it.
+- **Servers** — the work panel version on each server and an "Update to …" button. VPN clients stay connected.
+- **Installation progress** is shown step by step with a log in a separate window; the rest of the admin panel is locked while it runs. If a master panel update fails, the previous version is restored automatically.
+- **Rollback** — "Roll back…" for the master panel and "Other version…" for a server. Rollback is at your own risk: an older version may not support data from a newer one. The database is backed up automatically before a master panel rollback.
 
-**Консоль:** `hidevp` → «Обновить панель». Меню покажет версии на сервере и найдёт доступную: архив в `/root`, иначе последнюю с GitHub. Если версия новее — предложит обновить. Если та же — сообщит «У вас последняя версия». Если старше — предупредит о рисках и попросит ввести слово `откат`.
+**Console:** `hidevp` → "Update the panel". The menu shows the versions on the server and finds an available one: an archive in `/root`, otherwise the latest from GitHub. If it is newer, the menu offers to update. If it is the same, it says "You have the latest version". If it is older, it warns about the risks and asks you to type the word `rollback`.
 
-`hidevp` → «Откат на прошлую версию» показывает копии прошлых версий на сервере (установщик сохраняет их перед каждым обновлением в `/opt/hidevp-panel/rollback/`, 3 последние) и релизы с GitHub.
+`hidevp` → "Roll back to an older version" lists copies of previous versions on the server (the installer saves them before each update in `/opt/hidevp-panel/rollback/`, last 3) and GitHub releases.
 
-Устанавливаются только пакеты с подписью автора и совпадающей контрольной суммой.
+Only packages with the author's signature and a matching checksum are installed.
 
-## Резервные копии
+## Backups
 
-Раздел **«Резервные копии»** в админке.
+The **"Backups"** section of the admin panel.
 
-- **Автоматически:** выключено, раз в день, раз в неделю или раз в месяц; задаётся число хранимых копий.
-- **Вручную:** «Полная копия» или «Выборочно» с отметками: пользователи, серверы, VPN-подключения, статистика трафика, оплаты, промокоды, уведомления, настройки. Копию можно скачать или сохранить на сервере.
-- **Восстановление:**
-  - «Обновить данные» — объединить с текущими: совпадающие записи обновляются, новые добавляются;
-  - «Заменить» — текущие данные заменяются данными из копии. Для выборочной копии заменяются только данные, которые в ней есть.
-- Логин администратора, адрес, порт и секретный путь админки при восстановлении не меняются. Перед восстановлением текущая база сохраняется автоматически, вернуть её можно кнопкой «Откатить».
-- Копии хранятся в `/opt/hidevp-panel/master/data/backups/`. Полная копия содержит ключи подключения к узлам — храните её в надёжном месте.
+- **Automatic:** off, daily, weekly or monthly; the number of copies to keep is configurable.
+- **Manual:** "Full backup" or "Selective" with checkboxes: users, servers, VPN connections, traffic statistics, payments, promo codes, notices, settings. A backup can be downloaded or saved on the server.
+- **Restore:**
+  - "Update data" — merge with current data: matching records are updated, new ones are added;
+  - "Replace" — current data is replaced with data from the backup. For a selective backup only the data it contains is replaced.
+- The administrator login, address, port and secret path of the admin panel do not change on restore. The current database is backed up automatically before a restore and can be returned with the "Roll back" button.
+- Backups are stored in `/opt/hidevp-panel/master/data/backups/`. A full backup contains the node connection keys — keep it in a safe place.
 
-## Безопасность
+## Security
 
-- Админка на случайном пути и порту. Пароль хранится как хеш scrypt. После 5 неверных попыток вход с IP блокируется на 10 минут, при массовом подборе с разных IP вход временно закрывается для всех.
-- В базе хранятся только хеши токенов сеанса.
-- Cookie сеанса `HttpOnly`, `SameSite=Strict`, при HTTPS — `Secure`. Проверка Origin для изменяющих запросов, заголовки CSP, `X-Frame-Options`, HSTS.
-- Вход на сайт по номеру: код из 6 цифр на 5 минут, 5 попыток, лимиты запросов на номер, IP и сервер. Ответ одинаков для любого номера, по нему нельзя узнать, зарегистрирован ли номер.
-- Цена, валюта и промокод проверяются перед оплатой, повторный платёж не засчитывается.
-- Связь с узлами — HTTPS с закреплённым сертификатом и 256-битным ключом. Порт управления узла закрыт для всех, кроме master-панели.
-- Узлы проверяют подпись Ed25519 у пакета обновления и не ставят неподписанные пакеты.
-- Домены, пути и имена сервисов в настройках VPN проверяются, размер запросов ограничен, архив резервной копии проверяется перед восстановлением.
-- nginx не показывает версию, запросы по IP без домена отклоняются.
-- База, резервные копии, ключи узлов и логи Xray доступны только root.
+- The admin panel runs on a random path and port. The password is stored as a scrypt hash. After 5 failed attempts, login from that IP is blocked for 10 minutes; a mass attempt from many IPs temporarily closes login for everyone.
+- Only hashes of session tokens are stored in the database.
+- Session cookie is `HttpOnly`, `SameSite=Strict`, and `Secure` over HTTPS. Origin check for state-changing requests, CSP, `X-Frame-Options` and HSTS headers.
+- Website phone login: a 6-digit code valid for 5 minutes, 5 attempts, request limits per number, IP and server. The response is the same for any number, so it can't reveal whether a number is registered.
+- Price, currency and promo code are checked before payment; a repeated payment is not counted twice.
+- Connection to nodes is HTTPS with a pinned certificate and a 256-bit key. The node management port is closed to everyone except the master panel.
+- Nodes verify the Ed25519 signature of an update package and refuse unsigned packages.
+- Domains, paths and service names in VPN settings are validated, request size is limited, and a backup archive is checked before restore.
+- nginx hides its version; requests by IP without a domain are rejected.
+- The database, backups, node keys and Xray logs are accessible to root only.
 
-## Структура проекта
+## Project structure
 
 ```
 hidevp-panel/
-├── hidevp.sh              меню установки и управления
-├── install-master.sh      установка master-панели
-├── install-node.sh        установка work-панели
-├── ports.sh               проверка портов
-├── get.sh                 установка одной командой
-├── verify_release.py      проверка подписи релиза
-├── VERSION                версия master-панели
-├── tools/release.py       сборка и подпись релиза
-├── .github/workflows/     публикация релиза на GitHub
-├── docs/logo.svg          логотип
+├── hidevp.sh              install and management menu
+├── install-master.sh      master panel installer
+├── install-node.sh        work panel installer
+├── ports.sh               port checks
+├── get.sh                 one-command installer
+├── verify_release.py      release signature check
+├── VERSION                master panel version
+├── tools/release.py       release build and signing
+├── .github/workflows/     release publishing on GitHub
+├── docs/logo.svg          logo
 ├── master/
-│   ├── app/main.py        веб-сервер: API админки, сайт, подписки
-│   ├── app/bot.py         Telegram-бот
-│   ├── app/botui.py       кнопки и тексты бота
-│   ├── app/payments.py    способы оплаты
-│   ├── app/promo.py       промокоды
-│   ├── app/notices.py     уведомления
-│   ├── app/stats.py       статистика и выгрузка CSV
-│   ├── app/backup.py      резервные копии
-│   ├── app/update.py      обновления и откат
-│   ├── app/sync.py        синхронизация с узлами, лимиты
-│   ├── app/nodes.py       клиент work-панелей
-│   ├── app/tg.py          связь с Telegram (напрямую, через узел, через прокси)
-│   ├── app/core.py        пользователи, ключи Reality, ссылки VLESS
-│   ├── app/db.py          база SQLite
-│   ├── app/i18n.py        перевод сообщений
-│   ├── app/qr.py          QR-код
-│   ├── app/cli.py         команда hidevp-panel
-│   └── static/            админка, личная страница, страница входа, документация, флаги
+│   ├── app/main.py        web server: admin API, website, subscriptions
+│   ├── app/bot.py         Telegram bot
+│   ├── app/botui.py       bot buttons and texts
+│   ├── app/payments.py    payment methods
+│   ├── app/promo.py       promo codes
+│   ├── app/notices.py     notices
+│   ├── app/stats.py       statistics and CSV export
+│   ├── app/backup.py      backups
+│   ├── app/update.py      updates and rollback
+│   ├── app/sync.py        node sync, limits
+│   ├── app/nodes.py       work panel client
+│   ├── app/tg.py          Telegram connection (direct, via a node, via a proxy)
+│   ├── app/core.py        users, Reality keys, VLESS links
+│   ├── app/db.py          SQLite database
+│   ├── app/i18n.py        message translation
+│   ├── app/qr.py          QR code
+│   ├── app/cli.py         the hidevp-panel command
+│   └── static/            admin panel, personal page, login page, documentation, flags
 └── node/
-    ├── agent.py           API узла: конфигурация Xray, статистика, онлайн
-    └── nodectl.py         команда hidevp-node
+    ├── agent.py           node API: Xray config, statistics, online users
+    └── nodectl.py         the hidevp-node command
 ```
 
-Зависимости: Python 3.10+, Starlette, Uvicorn, cryptography; на узлах — Xray-core (XTLS). Флаги стран — [flag-icons](https://github.com/lipis/flag-icons) (MIT, лицензия в `master/static/flags/LICENSE.txt`).
+Dependencies: Python 3.10+, Starlette, Uvicorn, cryptography; Xray-core (XTLS) on nodes. Country flags — [flag-icons](https://github.com/lipis/flag-icons) (MIT, license in `master/static/flags/LICENSE.txt`).
 
-## Возможные проблемы
+## Troubleshooting
 
-Начните с кнопки **Серверы → Проверить**: она показывает причину большинства проблем с VPN.
+Start with **Servers → Check**: it shows the cause of most VPN problems.
 
-| Проблема | Что сделать |
+| Problem | What to do |
 |---|---|
-| В браузере 502 | `journalctl -u hidevp-panel -n 30 --no-pager` |
-| Сервер «Нет связи» | На узле `systemctl status hidevp-node`; открыт ли порт API у хостера. Карточки открываются сразу, данные каждого сервера подгружаются отдельно |
-| «Порт занят другой программой» | Чаще всего старый x-ui: `x-ui stop && systemctl disable x-ui`, затем «Перезагрузить панель». Или выберите другой порт |
-| Xray не запускается | Ошибка видна в карточке сервера; `hidevp` → Xray → исправить права или переустановить |
-| Приложение подключается, интернета нет | «Проверить» на сервере; обновите подписку в приложении, попробуйте XHTTP, другой протокол (например, Hysteria2), другой порт или сайт маскировки |
-| Master-панель не может связаться с сервером после смены её IP | На сервере: `hidevp` → Xray → «Открыть API work-панели». Доступ закроется снова уже для нового IP |
-| «Свой сайт» не работает | В «Проверить» смотрите пункт «Свой сайт … работает». Проверьте A-запись домена (без оранжевого облака Cloudflare) и что порт 80 открыт у хостера. Лог: `journalctl -u hidevp-caddy -n 30` |
-| Через какое-то время пропадает связь со всеми серверами | Если «Проверить» зелёное, а с другой сети (Wi-Fi ↔ мобильный) работает — это блокировка на стороне провайдера: попробуйте XHTTP, Hysteria2, другой порт, сайт маскировки или IP. Если обрывы у всех одновременно — `journalctl -u xray -u hidevp-node --since "1 hour ago"`, `df -h`, `free -m` на узле. Включите «Автовыбор сервера», чтобы приложение само уходило на работающий сервер |
-| Бот молчит, `timed out` при сохранении токена | Telegram недоступен с master: Telegram-бот → «Через подключённый сервер» или прокси |
-| CryptoBot: ошибка 403 или «неверный токен» | Маршрут бота «Через подключённый сервер»; токен @CryptoBot — без флажка «Тестовая сеть», токен @CryptoTestnetBot — с ним |
-| Счёт не создаётся | Нажмите оплату в боте сами: администратор видит причину в сообщении |
-| Код входа на сайт не приходит | Пользователь должен нажать /start в боте и не блокировать его; номер должен быть привязан |
-| Флаг 🌐 вместо страны | Серверы → Обновить или задайте код страны вручную (Изменить) |
-| Забыли пароль админки | `hidevp-panel reset-admin` на master |
-| «Перезагрузить панель» | Заново отправляет настройки на все серверы, перезапускает Xray и бота. Помогает, если что-то «залипло» |
+| 502 in the browser | `journalctl -u hidevp-panel -n 30 --no-pager` |
+| Server is "Offline" | On the node: `systemctl status hidevp-node`; check that the API port is open at the hosting provider. Cards open instantly; each server's data loads separately |
+| "Port is used by another program" | Usually an old x-ui: `x-ui stop && systemctl disable x-ui`, then "Reload panel". Or choose another port |
+| Xray does not start | The error is shown on the server card; `hidevp` → Xray → fix permissions or reinstall |
+| The master panel can't reach a server after its IP changed | On the server: `hidevp` → Xray → "Open the work panel API". Access is locked again for the new IP |
+| "Own site" doesn't work | In "Check", look at "Own site … works". Check the domain's A record (no Cloudflare orange cloud) and that port 80 is open at the hoster. Log: `journalctl -u hidevp-caddy -n 30` |
+| After a while the connection to all servers is lost | If "Check" is green and another network (Wi-Fi ↔ mobile) works, it's blocking on the provider side: try XHTTP, Hysteria2, another port, camouflage site or IP. If everyone drops at once, run `journalctl -u xray -u hidevp-node --since "1 hour ago"`, `df -h`, `free -m` on the node. Turn on "Auto server selection" so the app moves to a working server by itself |
+| The app connects but there is no internet | "Check" on the server; refresh the subscription in the app, try XHTTP, another protocol (e.g. Hysteria2), another port or camouflage site |
+| The bot is silent, `timed out` when saving the token | Telegram is unreachable from the master: Telegram bot → "Via a connected server" or a proxy |
+| CryptoBot: error 403 or "invalid token" | Bot route "Via a connected server"; a @CryptoBot token — without the "Testnet" checkbox, a @CryptoTestnetBot token — with it |
+| An invoice is not created | Press pay in the bot yourself: the administrator sees the reason in the message |
+| The website login code does not arrive | The user must press /start in the bot and not block it; the phone number must be linked |
+| 🌐 instead of a country flag | Servers → Refresh, or set the country code manually (Edit) |
+| Forgot the admin password | `hidevp-panel reset-admin` on the master |
+| "Reload panel" | Re-sends settings to all servers and restarts Xray and the bot. Helps when something gets stuck |
 
-## Автор
+## Author
 
 **pronitar** — [github.com/pronitar](https://github.com/pronitar)
 
-Вопросы и предложения — через [Issues](https://github.com/pronitar/hidevp-panel/issues).
+Questions and suggestions — via [Issues](https://github.com/pronitar/hidevp-panel/issues).
 
-### Поддержать проект
+### Support the project
 
-Если панель вам пригодилась, можно поддержать разработку:
+If the panel is useful to you, you can support its development:
 
 - **Boosty:** https://boosty.to/pronitar/donate
 - **TON:** `UQCEpLG3CGuwFGlfwy2UkTEkYbr5sy4TUIlBi33HA0MgoFZH`
 - **ETH:** `0x116414f271E19A2ccEdf8F9069206b97603e048F`
 - **BTC:** `bc1q8cqyc7mp7yw98kxyr2qt4m3zxghsdz5jp0nny2`
 
-Кнопка «❤ Донат» в админке открывает эти же реквизиты.
+The "❤ Donate" button in the admin panel opens the same details.
