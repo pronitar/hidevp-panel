@@ -16,6 +16,7 @@ from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, R
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+import hashlib
 import hmac
 import random
 
@@ -54,11 +55,15 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "?"
 
 
+def _sess(tok: str) -> str:
+    return hashlib.sha256(("hv-session:" + tok).encode()).hexdigest()
+
+
 def current_admin(request: Request):
     tok = request.cookies.get(COOKIE)
     if not tok:
         return None
-    s = q1("SELECT * FROM sessions WHERE token=?", (tok,))
+    s = q1("SELECT * FROM sessions WHERE token=?", (_sess(tok),))
     if not s or s["created"] + SESSION_TTL < time.time():
         return None
     return q1("SELECT id, username FROM admins WHERE id=?", (s["admin_id"],))
@@ -104,17 +109,19 @@ async def login(request: Request):
     now = time.time()
     _prune(FAILS, 600)
     FAILS[ip] = [t for t in FAILS.get(ip, []) if now - t < 600]
-    if len(FAILS[ip]) >= 5:
+    FAILS["*"] = [t for t in FAILS.get("*", []) if now - t < 600]
+    if len(FAILS[ip]) >= 5 or len(FAILS["*"]) >= 50:
         raise ApiError("Слишком много попыток. Подождите 10 минут.", 429)
     d = await body(request)
     a = q1("SELECT * FROM admins WHERE username=?", (str(d.get("username", "")).strip(),))
     good = core.check_password(str(d.get("password", "")), a["pass_hash"] if a else DUMMY_HASH)
     if not a or not good:
         FAILS[ip].append(now)
+        FAILS["*"].append(now)
         await asyncio.sleep(1)
         raise ApiError("Неверный логин или пароль", 401)
     tok = secrets.token_urlsafe(32)
-    ex("INSERT INTO sessions(token,admin_id,created) VALUES(?,?,?)", (tok, a["id"], now))
+    ex("INSERT INTO sessions(token,admin_id,created) VALUES(?,?,?)", (_sess(tok), a["id"], now))
     ex("DELETE FROM sessions WHERE created<?", (now - SESSION_TTL,))
     resp = ok()
     resp.set_cookie(COOKIE, tok, max_age=int(SESSION_TTL), httponly=True, samesite="strict",
@@ -123,7 +130,7 @@ async def login(request: Request):
 
 
 async def logout(request: Request):
-    ex("DELETE FROM sessions WHERE token=?", (request.cookies.get(COOKIE, ""),))
+    ex("DELETE FROM sessions WHERE token=?", (_sess(request.cookies.get(COOKIE, "")),))
     resp = ok()
     resp.delete_cookie(COOKIE, path=request.app.state.base + "/")
     return resp
@@ -508,6 +515,11 @@ async def port_guard(node_id: int, port: int, vid: int | None, force: bool = Fal
     return {"checked": bool(pr and pr["total"]), "from": pr["from"] if pr else []}
 
 
+HOST_RE = re.compile(r"(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]")
+PATH_RE = re.compile(r"/[A-Za-z0-9._~/-]{0,99}")
+SERVICE_RE = re.compile(r"[A-Za-z0-9._-]{1,64}")
+
+
 def validate_vpn(d: dict, node_id: int, vid: int | None = None) -> dict:
     out = {}
     n = q1("SELECT * FROM nodes WHERE id=?", (node_id,))
@@ -535,14 +547,18 @@ def validate_vpn(d: dict, node_id: int, vid: int | None = None) -> dict:
         raise ApiError("Неизвестный отпечаток")
     sni = str(d.get("sni") or "www.microsoft.com").strip().lower()
     sni = sni.replace("https://", "").replace("http://", "").split("/")[0]
-    if not sni or " " in sni:
-        raise ApiError("Укажите домен для маскировки")
+    if not sni or not HOST_RE.fullmatch(sni):
+        raise ApiError("Укажите домен для маскировки: только латиница, цифры, точки и дефисы")
     path = str(d.get("path") or "").strip()
     if transport == "xhttp" and not path:
         path = "/" + secrets.token_hex(6)
     if path and not path.startswith("/"):
         path = "/" + path
+    if path and not PATH_RE.fullmatch(path):
+        raise ApiError("Путь XHTTP: латиница, цифры и символы / - _ . ~, до 100 символов")
     service = str(d.get("service_name") or "").strip() or (secrets.token_hex(5) if transport == "grpc" else "")
+    if service and not SERVICE_RE.fullmatch(service):
+        raise ApiError("Имя сервиса gRPC: латиница, цифры и символы - _ ., до 64 символов")
     steal = bool(d.get("steal")) if "steal" in d else d.get("dest") == "self"
     if protocol not in core.REALITY_PROTOCOLS:
         steal = False
@@ -939,7 +955,10 @@ async def user_pay(request: Request):
     if not _rate("pay:" + u["token"], 10, 3600):
         raise ApiError("Слишком много запросов. Попробуйте через час.", 429)
     d = await body(request)
-    method, months = str(d.get("method", "")), int(d.get("months") or 0)
+    try:
+        method, months = str(d.get("method", "")), int(d.get("months") or 0)
+    except (TypeError, ValueError):
+        raise ApiError("Тариф недоступен.")
     if method not in payments.enabled() or months not in payments.plans() or u.get("forever"):
         raise ApiError("Тариф недоступен.")
     LANG.set(core.user_lang(u))
@@ -1200,6 +1219,11 @@ async def node_socks(request: Request):
     return ok({"on": True, "port": port, "links": core.socks_links(n), "agent_ok": True})
 
 
+async def docs(request: Request):
+    lang = "en" if LANG.get() == "en" else "ru"
+    return ok({"html": (STATIC / "docs" / f"{lang}.html").read_text(encoding="utf-8")})
+
+
 async def node_update_log(request: Request):
     n = q1("SELECT * FROM nodes WHERE id=?", (int(request.path_params["id"]),))
     if not n:
@@ -1344,7 +1368,7 @@ async def subscription(request: Request):
 async def user_page(request: Request):
     u = find_user_by_token(request.path_params["token"])
     if not u:
-        return HTMLResponse("<h1>404</h1>", status_code=404)
+        return not_found(request)
     st = core.user_status(u)
     data = {
         "title": get_setting("panel_title", "VPN"),
@@ -1378,10 +1402,6 @@ async def user_lang(request: Request):
     if u and d.get("lang") in ("ru", "en"):
         ex("UPDATE users SET lang=? WHERE id=?", (d["lang"], u["id"]))
     return ok()
-
-
-async def not_found(request: Request):
-    return PlainTextResponse("Not found", status_code=404)
 
 
 USER_COOKIE = "hv_u"
@@ -1450,7 +1470,8 @@ async def auth_request(request: Request):
         raise ApiError("Слишком много запросов. Попробуйте через час.", 429)
     u = q1("SELECT * FROM users WHERE phone=? AND tg_id IS NOT NULL", (phone,))
     if not u:
-        return ok({"status": "not_found", "bot": bot_link()})
+        await asyncio.sleep(random.uniform(0.3, 0.9))
+        return ok({"status": "sent", "wait": 60, "bot": bot_link()})
     prev = CODES.get(phone)
     if prev and time.time() - prev["created"] < 60:
         return ok({"status": "sent", "wait": int(60 - (time.time() - prev["created"]))})
@@ -1460,16 +1481,18 @@ async def auth_request(request: Request):
     if not await bot.send_login_code(u["tg_id"], code, core.user_lang(u)):
         raise ApiError("Не удалось отправить код в Telegram. Откройте бота и нажмите /start.", 503)
     CODES[phone] = {"code": code, "user_id": u["id"], "created": time.time(), "attempts": 0}
-    return ok({"status": "sent", "wait": 60})
+    return ok({"status": "sent", "wait": 60, "bot": bot_link()})
 
 
 async def auth_verify(request: Request):
     d = await body(request)
     phone = core.normalize_phone(d.get("phone", ""))
     entry = CODES.get(phone)
+    if not _rate("verify:" + client_ip(request), 30, 3600):
+        raise ApiError("Слишком много запросов. Попробуйте через час.", 429)
     if not entry or time.time() - entry["created"] > CODE_TTL:
         CODES.pop(phone, None)
-        raise ApiError("Код устарел. Запросите новый.")
+        raise ApiError("Неверный или устаревший код. Запросите новый.")
     entry["attempts"] += 1
     if entry["attempts"] > 5:
         CODES.pop(phone, None)
@@ -1504,6 +1527,10 @@ def _host_only(h: str) -> str:
     return h.rsplit(":", 1)[0] if h.count(":") == 1 else h
 
 
+MAX_BODY = 2 * 1024 * 1024
+BIG_BODY = 101 * 1024 * 1024
+
+
 class SecurityMiddleware:
 
     def __init__(self, app):
@@ -1524,6 +1551,23 @@ class SecurityMiddleware:
             elif origin == "null":
                 resp = JSONResponse({"error": "Forbidden (origin)"}, status_code=403)
                 return await resp(scope, receive, send)
+        limit = BIG_BODY if path.endswith(("/api/backup/restore", "/api/backups/restore")) else MAX_BODY
+        try:
+            clen = int(headers.get("content-length") or 0)
+        except ValueError:
+            clen = 0
+        if clen > limit:
+            resp = JSONResponse({"error": "Request too large"}, status_code=413)
+            return await resp(scope, receive, send)
+        seen = {"n": 0}
+
+        async def limited_receive():
+            message = await receive()
+            if message["type"] == "http.request":
+                seen["n"] += len(message.get("body", b""))
+                if seen["n"] > limit:
+                    raise RuntimeError("request body too large")
+            return message
         https = scope.get("scheme") == "https"
 
         async def send_wrapper(message):
@@ -1538,7 +1582,7 @@ class SecurityMiddleware:
                 h += [(k, v) for k, v in extra.items() if k not in have]
                 message["headers"] = h
             await send(message)
-        return await self.app(scope, receive, send_wrapper)
+        return await self.app(scope, limited_receive, send_wrapper)
 
 
 def _prune(d: dict, window: int):
@@ -1572,6 +1616,7 @@ def build_app() -> Starlette:
         Route(base + "/api/nodes/{id:int}/diag", api(node_diag), methods=["POST"]),
         Route(base + "/api/nodes/{id:int}/update", api(node_update), methods=["POST"]),
         Route(base + "/api/nodes/{id:int}/update-log", api(node_update_log)),
+        Route(base + "/api/docs", api(docs)),
         Route(base + "/api/nodes/{id:int}/socks", api(node_socks), methods=["GET", "PUT", "DELETE"]),
         Route(base + "/api/nodes/{id:int}/{action}", api(node_action), methods=["POST"]),
         Route(base + "/api/reload", api(reload_all), methods=["POST"]),

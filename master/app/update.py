@@ -93,7 +93,7 @@ def _keep_last(out_dir: Path, n: int = KEEP_PACKAGES):
 
 
 def _get(url: str, timeout=20, limit=60 * 1024 * 1024) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "hidevp-panel/" + installed_version()})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         data = r.read(limit + 1)
     if len(data) > limit:
@@ -361,8 +361,12 @@ def agent_payload(version: str | None = None) -> dict:
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         name = next((n for n in z.namelist() if n.endswith("node/agent.py")), None)
         mm = re.search(r'^VERSION = "(.+?)"', z.read(name).decode(errors="ignore"), re.M) if name else None
-    return {"data": base64.b64encode(data).decode(), "sha256": hashlib.sha256(data).hexdigest(),
-            "version": mm.group(1) if mm else ""}
+    man = next((m for path, m in _cached().values() if path == pkg), None)
+    out = {"data": base64.b64encode(data).decode(), "sha256": hashlib.sha256(data).hexdigest(),
+           "version": mm.group(1) if mm else ""}
+    if man and man.get("sha256") == out["sha256"]:
+        out["manifest"] = man
+    return out
 
 
 def read_log(lines=60) -> str:

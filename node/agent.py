@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -484,9 +484,13 @@ def hot_apply(prev: dict, state: dict, cfg: dict):
         _api("adrules", files={"r.json": {"routing": {"rules": cfg["routing"]["rules"]}}})
 
 
+HOST_RE = re.compile(r"(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]")
+
+
 def steal_domains(state: dict) -> list[str]:
     return sorted({ib["sni"] for ib in state.get("inbounds", [])
-                   if ib.get("dest") == "self" and ib.get("sni") and (ib.get("protocol") or "vless") in ("vless", "trojan")})
+                   if ib.get("dest") == "self" and HOST_RE.fullmatch(str(ib.get("sni") or ""))
+                   and (ib.get("protocol") or "vless") in ("vless", "trojan")})
 
 
 CADDY_BIN = "/usr/local/lib/hidevp/hidevp-caddy"
@@ -998,7 +1002,7 @@ def tg_relay(path: str, body: bytes, timeout: float, host: str = "api.telegram.o
     prefix = RELAY_HOSTS.get(host)
     if not prefix or not path.startswith(prefix) or ".." in path:
         raise ValueError("bad path")
-    hdrs = {"Content-Type": "application/json", "User-Agent": "hidevp-node/1.0 (+https://github.com/pronitar/hidevp-panel)"}
+    hdrs = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
     hdrs.update({k: str(v) for k, v in (headers or {}).items() if k.lower() in RELAY_HEADERS})
     req = urllib.request.Request(f"https://{host}{path}", data=body, headers=hdrs)
     try:
@@ -1059,13 +1063,39 @@ async def restart(request):
 UPDATE_LOG = "/var/log/hidevp-node-update.log"
 
 
-def self_update(data_b64: str, sha: str) -> dict:
+RELEASE_PUB = BASE / "release_key.pub"
+
+
+def verify_release(manifest: dict, data_sha: str):
+    import tempfile
+    raw = base64.b64decode(RELEASE_PUB.read_text().strip())
+    if len(raw) != 32:
+        raise ValueError("повреждён ключ подписи релизов")
+    der = bytes.fromhex("302a300506032b6570032100") + raw
+    pem = "-----BEGIN PUBLIC KEY-----\n" + base64.b64encode(der).decode() + "\n-----END PUBLIC KEY-----\n"
+    body = {k: v for k, v in manifest.items() if k != "signature"}
+    msg = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    with tempfile.TemporaryDirectory() as td:
+        (Path(td) / "k.pem").write_text(pem)
+        (Path(td) / "m").write_bytes(msg)
+        (Path(td) / "s").write_bytes(base64.b64decode(manifest.get("signature") or ""))
+        r = run(["openssl", "pkeyutl", "-verify", "-pubin", "-inkey", f"{td}/k.pem", "-rawin",
+                 "-in", f"{td}/m", "-sigfile", f"{td}/s"], timeout=20)
+    if r.returncode != 0 or manifest.get("app") != "hidevp-panel" or manifest.get("sha256") != data_sha:
+        raise ValueError("подпись пакета не прошла проверку — обновление отклонено")
+
+
+def self_update(data_b64: str, sha: str, manifest: dict | None = None) -> dict:
     import shutil
     import tempfile
     import zipfile
     data = base64.b64decode(data_b64 or "")
     if not data or hashlib.sha256(data).hexdigest() != sha:
         raise ValueError("контрольная сумма пакета не совпала")
+    if RELEASE_PUB.exists():
+        if not isinstance(manifest, dict):
+            raise ValueError("пакет без подписи релиза — work-панель принимает только подписанные версии с GitHub")
+        verify_release(manifest, sha)
     DATA.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix="update-", dir=DATA))
     try:
@@ -1109,7 +1139,7 @@ async def update_log(request):
 @guard
 async def self_update_route(request):
     d = await request.json()
-    return JSONResponse(await asyncio.to_thread(self_update, d.get("data", ""), d.get("sha256", "")))
+    return JSONResponse(await asyncio.to_thread(self_update, d.get("data", ""), d.get("sha256", ""), d.get("manifest")))
 
 
 async def log_watcher():

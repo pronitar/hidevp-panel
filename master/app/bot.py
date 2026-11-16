@@ -583,6 +583,9 @@ class BotManager:
             want = json.loads(get_setting("admin_link") or "{}")
         except ValueError:
             want = {}
+        if want.get("code") and not hmac.compare_digest((code or "").upper(), str(want["code"])):
+            want["fails"] = int(want.get("fails", 0)) + 1
+            set_setting("admin_link", "" if want["fails"] >= 5 else json.dumps(want))
         if not code or not want.get("code") or time.time() > want.get("until", 0) \
                 or not hmac.compare_digest(code.upper(), str(want["code"])):
             return await self.send(chat, T(u, "Код не подошёл или устарел. Получите новый в админке: Telegram-бот → «Подключить мой Telegram».",

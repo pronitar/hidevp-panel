@@ -61,6 +61,7 @@ PUBLIC_IP=$(curl -4 -s --max-time 8 https://api.ipify.org || true)
 
 mkdir -p "$DEST/data"
 cp "$SRC/node/agent.py" "$SRC/node/nodectl.py" "$SRC/node/requirements.txt" "$DEST/"
+[ -s "$SRC/master/app/release_key.pub" ] && cp "$SRC/master/app/release_key.pub" "$DEST/release_key.pub"
 progress 45
 REQ_SUM=$(sha256sum "$DEST/requirements.txt" | cut -c1-64)
 if [ ! -x "$DEST/venv/bin/python" ]; then

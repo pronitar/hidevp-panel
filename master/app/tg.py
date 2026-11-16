@@ -63,7 +63,7 @@ class _SocksHTTPS(http.client.HTTPSConnection):
 
 def _post_direct(path: str, body: bytes, timeout: float, proxy: str = "", host: str = API_HOST,
                  headers: dict | None = None) -> tuple[int, bytes]:
-    hdrs = {"Content-Type": "application/json", "User-Agent": "hidevp-panel/1.0 (+https://github.com/pronitar/hidevp-panel)",
+    hdrs = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0",
             **(headers or {})}
     if proxy.startswith(("socks5://", "socks5h://", "socks://")):
         p = urllib.parse.urlsplit(proxy)

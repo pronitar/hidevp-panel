@@ -65,6 +65,7 @@ Hysteria2 needs Xray 26.3.27 or newer on the node — the installer sets up the 
 - **Backups.** Automatic (daily, weekly or monthly), full or selective, restore by merging or replacing.
 - **Updates.** Versions of all panels on one page, one-click update, rollback to an older version. Packages are signed with Ed25519.
 - **Website.** Phone number login (the code arrives in the bot), personal page with a QR code, renewal and "Add to Happ / INCY" buttons.
+- **Documentation.** A "Documentation" tab in the admin panel: installation, protocols and encryption, camouflage, bot, payments, updates, troubleshooting, with search.
 - Admin panel, bot and website in Russian and English. Four admin panel themes.
 
 ## Requirements
@@ -191,11 +192,15 @@ The **"Backups"** section of the admin panel.
 
 ## Security
 
-- The admin panel runs on a random path and port. The password is stored as a scrypt hash. After 5 failed attempts, login from that IP is blocked for 10 minutes.
+- The admin panel runs on a random path and port. The password is stored as a scrypt hash. After 5 failed attempts, login from that IP is blocked for 10 minutes; a mass attempt from many IPs temporarily closes login for everyone.
+- Only hashes of session tokens are stored in the database.
 - Session cookie is `HttpOnly`, `SameSite=Strict`, and `Secure` over HTTPS. Origin check for state-changing requests, CSP, `X-Frame-Options` and HSTS headers.
-- Website phone login: a 6-digit code valid for 5 minutes, 5 attempts, request limits per number, IP and server.
+- Website phone login: a 6-digit code valid for 5 minutes, 5 attempts, request limits per number, IP and server. The response is the same for any number, so it can't reveal whether a number is registered.
 - Price, currency and promo code are checked before payment; a repeated payment is not counted twice.
-- Connection to nodes is HTTPS with a pinned certificate and a 256-bit key.
+- Connection to nodes is HTTPS with a pinned certificate and a 256-bit key. The node management port is closed to everyone except the master panel.
+- Nodes verify the Ed25519 signature of an update package and refuse unsigned packages.
+- Domains, paths and service names in VPN settings are validated, request size is limited, and a backup archive is checked before restore.
+- nginx hides its version; requests by IP without a domain are rejected.
 - The database, backups, node keys and Xray logs are accessible to root only.
 
 ## Project structure
@@ -230,7 +235,7 @@ hidevp-panel/
 │   ├── app/i18n.py        message translation
 │   ├── app/qr.py          QR code
 │   ├── app/cli.py         the hidevp-panel command
-│   └── static/            admin panel, personal page, login page, flags
+│   └── static/            admin panel, personal page, login page, documentation, flags
 └── node/
     ├── agent.py           node API: Xray config, statistics, online users
     └── nodectl.py         the hidevp-node command

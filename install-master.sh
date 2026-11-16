@@ -197,6 +197,7 @@ setup_caddy() {
   cat > /etc/caddy/hidevp-panel.caddy <<EOF
 $site {
     reverse_proxy 127.0.0.1:$internal
+    header -Server
 }
 EOF
   if [ ! -f /etc/caddy/Caddyfile ] || grep -q "/usr/share/caddy" /etc/caddy/Caddyfile; then
@@ -244,6 +245,32 @@ echo
 if [ ${#INIT_ARGS[@]} -gt 0 ]; then
   hidevp-panel init "${INIT_ARGS[@]}" --lang "$HV_LANG"
 fi
+harden_nginx() {
+  command -v nginx >/dev/null || return 0
+  [ -e /etc/nginx/sites-available/hidevp-panel.conf ] || [ -e /etc/nginx/conf.d/hidevp-panel.conf ] || return 0
+  [ -d /etc/nginx/conf.d ] || return 0
+  local f=/etc/nginx/conf.d/hidevp-hardening.conf
+  if ! grep -rqsE "^[[:space:]]*server_tokens" /etc/nginx/nginx.conf /etc/nginx/conf.d /etc/nginx/sites-enabled 2>/dev/null || [ -f "$f" ]; then
+    echo "server_tokens off;" > "$f"
+    nginx -t >/dev/null 2>&1 || rm -f "$f"
+  fi
+  local d=/etc/nginx/conf.d/hidevp-default.conf
+  if [ ! -f "$d" ] && ! grep -rqs "default_server" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null; then
+    cat > "$d" <<'EOF2'
+server {
+    listen 80 default_server;
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+    return 444;
+}
+EOF2
+    nginx -t >/dev/null 2>&1 || rm -f "$d"
+  fi
+  systemctl reload nginx 2>/dev/null || true
+}
+harden_nginx
+
 if [ -t 0 ] && [ ! -f "$DEST/data/.stub-asked" ]; then
   echo
   echo "$(m "Сайт-заглушка: на главной странице домена будет обычный сайт (личная страница),

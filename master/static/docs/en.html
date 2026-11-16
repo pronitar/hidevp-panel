@@ -1,0 +1,212 @@
+<section id="about"><h2>About the panel</h2>
+<p>HideVP Panel runs your own VPN service on Xray-core. One <b>master panel</b> manages everything: servers, VPN connections, users, the Telegram bot, payments and updates. Each VPN server runs a <b>work panel</b> (agent) that receives settings from the master and runs Xray.</p>
+<table><tr><th>Part</th><th>Where</th><th>What it does</th></tr>
+<tr><td>Master panel</td><td>One server (can be in Russia)</td><td>Admin panel, user site, subscriptions, Telegram bot, payments, backups</td></tr>
+<tr><td>Work panel</td><td>Every VPN server</td><td>Xray, connections, traffic and device accounting, server checks</td></tr>
+<tr><td><code>hidevp</code> console</td><td>Any server with the panel</td><td>Install, update, rollback, domain, logs, access recovery</td></tr></table>
+<p>A user gets one subscription link with all enabled connections. It works in Happ, INCY and other Xray clients. Disabling, renewing or limiting a user takes effect on all servers within about a minute, without restarting Xray.</p>
+<h3>Requirements</h3>
+<ul><li>A VPS with Ubuntu 22.04/24.04 or Debian 11/12 and root SSH access. 1 CPU and 1 GB RAM are enough.</li>
+<li>Servers need access to github.com for Xray-core and updates.</li>
+<li>A Telegram bot (created with @BotFather).</li>
+<li>Preferably a domain with an A record pointing to the master server. Without a domain the admin panel runs on <code>http://IP:port</code> without encryption.</li></ul>
+</section>
+
+<section id="install"><h2>Installation</h2>
+<p>Run one command on each server to open the installer menu:</p>
+<pre>bash &lt;(curl -fsSL https://github.com/pronitar/hidevp-panel/releases/latest/download/install.sh)</pre>
+<p>Without GitHub access: download <code>hidevp-panel-&lt;version&gt;.zip</code> from Releases, upload it to <code>/root</code> and run <code>cd /root &amp;&amp; unzip -o hidevp-panel-*.zip &amp;&amp; bash hidevp-panel/hidevp.sh</code>.</p>
+<h3>Install options</h3>
+<table><tr><th>Option</th><th>When to choose</th></tr>
+<tr><td>Master panel only</td><td>A separate management server (e.g. in Russia)</td></tr>
+<tr><td>Work panel only</td><td>VPN servers in the countries you need</td></tr>
+<tr><td>Both on one server</td><td>One server for management and VPN. Port 443 is used by the panel site — use 8443 for VPN</td></tr></table>
+<h3>Master panel</h3>
+<ol><li>Choose "Install the master panel" in the menu.</li>
+<li><b>Domain.</b> Enter a domain whose A record already points to the server. With nginx running, the panel adds a separate site and a certbot certificate without touching other sites; without nginx, Caddy is installed. Press Enter to install without a domain on <code>http://IP:random_port</code>. You can add a domain later: <code>hidevp</code> → "Domain and certificate".</li>
+<li><b>Stub site.</b> The installer asks whether to enable it. Recommended: the home page shows an ordinary website and user sign-in moves to a secret address (see "Server camouflage").</li>
+<li>At the end you get the admin URL (with a random secret path), login and password — save them.</li></ol>
+<h3>Work panel</h3>
+<ol><li>Choose "Install the work panel". Xray-core and the agent are installed and BBR is enabled.</li>
+<li>At the end you get a table of free ports and the <b><code>NODE-…</code> key</b>.</li>
+<li>In the admin panel: <b>Servers → Connect server</b> and paste the key. The management port is then closed to everyone except the master panel's IP.</li></ol>
+<h3>Ports</h3>
+<table><tr><th>Server</th><th>Port</th><th>Purpose</th></tr>
+<tr><td>master</td><td>80, 443</td><td>With a domain: site, admin panel, subscriptions</td></tr>
+<tr><td>master</td><td>from install</td><td>Without a domain: site, admin panel, subscriptions</td></tr>
+<tr><td>node</td><td>from install</td><td>Work panel API, reachable only from the master IP</td></tr>
+<tr><td>node</td><td>VPN ports</td><td>TCP; Hysteria2 — UDP; Shadowsocks — TCP and UDP; "Own site" — also 80/TCP</td></tr></table>
+<p>Ports are opened in <code>ufw</code> automatically. If your hoster has an external firewall, open the ports there too.</p>
+<h3>hidevp console</h3>
+<p><code>hidevp</code> opens a menu: sign-in details, login and password, domain and certificate, node key, Xray (restart, reinstall, config test, "Open the work panel API"), logs, update, rollback, reinstall and removal, language.</p>
+<pre>hidevp-panel info               # admin URL and login
+hidevp-panel reset-admin        # new login and password
+hidevp-panel set-stub on|off    # stub site
+hidevp-node key | rotate        # node key
+journalctl -u hidevp-panel -f   # master log
+journalctl -u hidevp-node -f    # work panel log
+journalctl -u xray -f           # Xray log</pre>
+</section>
+
+<section id="start"><h2>First setup</h2>
+<ol><li><b>Settings</b> — service name, public URL (with a domain: <code>https://domain</code>), support contact, default limits. Change the admin password.</li>
+<li><b>Servers → Connect server</b> — the <code>NODE-…</code> key of each node.</li>
+<li><b>VPN → Create</b> — server, protocol, transport, camouflage site. The port is filled in automatically.</li>
+<li><b>Telegram bot</b> — token, admin linking, a route via a foreign server if needed.</li>
+<li><b>Plans &amp; payments</b> — periods, prices, payment methods.</li>
+<li><b>Users → Create</b> — a test user; open their subscription link in Happ.</li>
+<li><b>Servers → Check</b> on every server — all items should be green.</li>
+<li><b>Backups</b> — enable automatic backups.</li></ol>
+</section>
+
+<section id="servers"><h2>Servers</h2>
+<p>The page opens instantly; each server's state loads separately. A card shows the country flag, address, work panel and Xray versions, CPU, memory and disk load, and the number of VPNs.</p>
+<ul><li><b>Check</b> — diagnostics: Xray running, ports listening and reachable, firewall, camouflage site, own site and its certificate, internet access through each connection, clock accuracy. Red items come with a hint.</li>
+<li><b>SOCKS5</b> — a login/password proxy for the administrator only: a <code>socks5://</code> link, an app import link and a Telegram proxy link. It is never added to user subscriptions. Traffic is not encrypted — use it for your own tasks.</li>
+<li><b>Edit</b> — name, address, country. <b>Delete</b> removes the server from the panel (the server itself is untouched).</li></ul>
+<p>The work panel management port is closed to everyone except the master panel's IP by default. If the master IP changes, run on the server: <code>hidevp</code> → Xray → "Open the work panel API".</p>
+</section>
+
+<section id="vpn"><h2>VPN connections and encryption</h2>
+<p>A connection is a protocol, port and camouflage on a specific server. A server can have several; all enabled connections appear in the subscription in "Order" order.</p>
+<h3>Protocols</h3>
+<table><tr><th>Protocol</th><th>Encryption and camouflage</th><th>When to use</th></tr>
+<tr><td>VLESS + Reality</td><td>TLS 1.3 with X25519 key exchange; Reality presents the server as the chosen site and forwards foreign connections to the real site</td><td>Main option</td></tr>
+<tr><td>Trojan + Reality</td><td>Same Reality camouflage, different inner protocol</td><td>A second option next to VLESS</td></tr>
+<tr><td>Shadowsocks-2022</td><td><code>2022-blake3-aes-128-gcm</code>, a separate key per user; no site camouflage</td><td>Backup, networks without deep filtering</td></tr>
+<tr><td>Hysteria2</td><td>QUIC/UDP with TLS, a self-signed certificate with pinning (pinSHA256); optional Salamander</td><td>Poor networks, UDP backup. Requires Xray 26.3.27+</td></tr></table>
+<h3>Transports (VLESS and Trojan)</h3>
+<table><tr><th>Transport</th><th>Notes</th></tr>
+<tr><td>TCP (+Vision for VLESS)</td><td>Best speed and latency</td></tr>
+<tr><td>XHTTP</td><td>Traffic travels as ordinary HTTP requests. Survives filtering in Russia best</td></tr>
+<tr><td>gRPC</td><td>Looks like Google services traffic; a fallback</td></tr></table>
+<h3>Form fields</h3>
+<ul><li><b>Port</b> — 443 is best; if taken, 8443 or 2053. The panel checks the port is free and reachable and suggests free ones.</li>
+<li><b>Camouflage site (SNI)</b> — foreign sites, Russian sites (for servers in Russia), own site (self-steal) or another site.</li>
+<li><b>TLS fingerprint</b> — Chrome by default.</li>
+<li><b>Internet exit</b> — from this server or via a connection on another server (cascade).</li>
+<li><b>Regenerate keys</b> — new Reality keys and passwords; users need to refresh the subscription.</li></ul>
+</section>
+
+<section id="camo"><h2>Camouflage against blocking</h2>
+<p>The most reliable setup is several different connections in the subscription plus auto selection: when the carrier blocks one, the app moves to another.</p>
+<table><tr><th>How it's blocked</th><th>What helps</th></tr>
+<tr><td>By foreign hosting IP, connections freeze</td><td>Cascade via a server in Russia, a new IP</td></tr>
+<tr><td>Mobile internet whitelists</td><td>Cascade via a Russian server of a large hoster</td></tr>
+<tr><td>Camouflage site doesn't match the IP</td><td>Own site, a site of the same hoster</td></tr>
+<tr><td>By site name (SNI)</td><td>TLS fragmentation, another camouflage site</td></tr>
+<tr><td>By traffic behaviour</td><td>XHTTP, Hysteria2</td></tr></table>
+<h3>Own site (self-steal)</h3>
+<ol><li>Create an A record for a subdomain (e.g. <code>fr.your-domain.com</code>) pointing to the server IP, without Cloudflare proxying.</li>
+<li>Port 80 on the server must be free or used by the master panel's nginx.</li>
+<li>In the VPN, choose the SNI "Own site on this server" and enter the domain. The panel installs Caddy, gets a Let's Encrypt certificate and shows a simple page (edit it in <code>/opt/hidevp-panel/node/data/site/&lt;domain&gt;/index.html</code>).</li>
+<li>After 1–2 minutes, "Check" → "Own site … works" should be green.</li></ol>
+<h3>Cascade</h3>
+<p>The phone connects to a server in Russia, which forwards traffic to a connection abroad. For the carrier it's a domestic connection. Requires work panel 1.3.0+ on both servers and a VPS at a large Russian hoster. In the VPN on the Russian server, choose a Russian SNI and "Internet exit → Via …". The subscription shows the exit country's flag.</p>
+<h3>Auto selection and fragmentation</h3>
+<p>Checkboxes at the top of the VPN page. <b>Auto selection</b> adds "⚡ Auto" in Happ and INCY: the app tests connections (except Hysteria2) and uses the fastest working one. <b>TLS fragmentation</b> splits the first packet with the site name. For Happ and INCY the subscription is then served as Xray JSON — the app's own routing rules don't apply.</p>
+<h3>Server camouflage</h3>
+<p>Settings → "Server camouflage":</p>
+<ul><li><b>Stub site</b> — the domain's home page shows an ordinary website (personal page, under construction, studio or custom HTML). Users sign in at a secret cabinet address that the bot sends automatically. Unknown addresses answer like plain nginx.</li>
+<li><b>Hide the work panels' API</b> — the management port on servers is open only to the master panel's IP.</li></ul>
+<p>Ready-made setups for different situations are in "Recommended setups".</p>
+</section>
+
+<section id="presets"><h2>Recommended setups</h2>
+<table><tr><th>Situation</th><th>Connections in the subscription</th></tr>
+<tr><td>One foreign server, with a domain</td><td>VLESS + XHTTP + own site (443/8443); VLESS + TCP + another site; Hysteria2 + Salamander</td></tr>
+<tr><td>One foreign server, no domain</td><td>VLESS + XHTTP + a "neighbour" site at the same hoster; Trojan + TCP + another site; Hysteria2</td></tr>
+<tr><td>Foreign + Russian server</td><td>All of the above + cascade: VLESS + XHTTP on the Russian server, SNI ya.ru or vk.com, exit via the foreign one</td></tr>
+<tr><td>Mobile whitelists</td><td>Cascade via the Russian server; direct connections for Wi-Fi</td></tr></table>
+<p>Test on a real carrier: refresh the subscription on Wi-Fi, then use each connection on mobile data for a day or two and note which lasts longest. Move the best to the top.</p>
+</section>
+
+<section id="users"><h2>Users</h2>
+<ul><li><b>Create</b> — name, period in months or unlimited, traffic limit (GB), device limit, torrent blocking.</li>
+<li><b>Statuses</b>: active, expired, traffic exceeded, suspended (device limit exceeded, 10 minutes), disabled manually.</li>
+<li><b>Device limit</b> counts different IPs in recent minutes. Suspension happens only if the excess lasts over 2.5 minutes — switching Wi-Fi ↔ mobile doesn't trigger it.</li>
+<li><b>Actions</b>: renew, reset traffic, regenerate links (the old subscription stops working), message in Telegram, payment history.</li>
+<li><b>User page</b> — a personal <code>/u/…</code> link: status, expiry, traffic, QR code, "Add to Happ / INCY" buttons, renewal.</li>
+<li><b>Subscription link</b> <code>/sub/…</code> — one for all connections; Happ, INCY, v2rayNG, Hiddify, NekoBox and other Xray clients.</li>
+<li><b>Site sign-in</b> — by phone number: the code arrives in the bot. The number is linked when the user shares it with the bot.</li></ul>
+</section>
+
+<section id="bot"><h2>Telegram bot</h2>
+<ol><li>Create a bot with <b>@BotFather</b> (<code>/newbot</code>) and copy the token.</li>
+<li>Admin panel → <b>Telegram bot</b> → paste the token → "Save".</li>
+<li><b>Connection to Telegram.</b> If the master is in Russia and Telegram is unreachable, choose "Via a connected server" and a foreign node, or "Via proxy" (<code>socks5://</code> — the SOCKS5 of one of your servers works).</li>
+<li><b>Link my Telegram</b> — get a code and send it to the bot: you become a bot admin and receive notifications about payments, transfers, new users and errors. The code is time-limited and is reset after 5 wrong attempts.</li></ol>
+<h3>The bot for users</h3>
+<ul><li><b>/start</b> — the bot creates the user; the subscription starts after a payment, a promo code or renewal by the administrator. To sign in on the site, the user shares their phone number with the bot.</li>
+<li><b>Menu</b> — my subscription (status, expiry, traffic, link, QR), buy or renew, regenerate links, instructions, support, language.</li>
+<li><b>Buttons and texts</b> — in the admin panel you can enable and disable menu buttons, reorder them, edit texts and add your own link buttons.</li>
+<li><b>Clean chat</b> — the bot deletes old menu messages so history doesn't pile up.</li>
+<li><b>Notifications</b> — 3 days before expiry and at expiry; device limit exceeded.</li></ul>
+</section>
+
+<section id="pay"><h2>Plans and payments</h2>
+<ul><li><b>Plans</b> — periods from 1 to 24 months, each with prices in Stars and in a currency (₽, $, €, ₸, ₴, Br).</li>
+<li><b>Telegram Stars</b> — work right away, no setup.</li>
+<li><b>Card (Telegram provider)</b> — connect a payment provider in @BotFather → Payments and paste the "Provider token".</li>
+<li><b>CryptoBot</b> — in @CryptoBot: Crypto Pay → Create app → copy the token. Payments are checked every 20 seconds.</li>
+<li><b>Transfers</b> — enter card or SBP details. The user gets a unique code for the payment comment and taps "I have paid"; you check the incoming payment and confirm in the bot or the admin panel.</li>
+<li><b>Paying on the site</b> — the user page offers the same plans and methods.</li></ul>
+<p>The price, currency and promo code are checked before payment; a repeated payment is not counted twice. Each payment extends the subscription by the chosen period and lifts a suspension.</p>
+<h3>Promo codes</h3>
+<p>Discount 1–100 %, plans, validity, usage limit, single or multiple use, new users only. A 100 % code activates the subscription without payment.</p>
+</section>
+
+<section id="notices"><h2>Notices and statistics</h2>
+<ul><li><b>Notices</b> — maintenance and news with start and end dates and an audience (everyone, active or expired subscriptions). Shown on the user page, in the bot and in apps; can be broadcast in Telegram.</li>
+<li><b>Statistics</b> — revenue, payments and users for a period, filters by payment method and plan, charts, CSV export.</li></ul>
+</section>
+
+<section id="backup"><h2>Backups</h2>
+<ul><li><b>Automatic</b> — daily, weekly or monthly; the number of kept copies is configurable.</li>
+<li><b>Manual</b> — a full copy or selected parts: users, servers, VPN, statistics, payments, promo codes, notices, settings.</li>
+<li><b>Restore</b> — "Update data" (merge with current) or "Replace". The admin login, URL and path don't change; the current database is saved before restoring.</li>
+<li>Backups are stored in <code>/opt/hidevp-panel/master/data/backups/</code>. A full copy contains node keys and tokens — keep it safe.</li></ul>
+</section>
+
+<section id="updates"><h2>Updates</h2>
+<ul><li>New versions are published only in GitHub releases and signed with the author's Ed25519 key. The master checks the signature and checksum; work panels check the release signature.</li>
+<li><b>Updates → master panel</b> — a window with a 0–100 % bar, steps and a log. The admin panel is locked while it runs. If installation fails, the previous version is restored automatically.</li>
+<li><b>Servers</b> — "Update to …" on each server. VPN clients stay connected.</li>
+<li><b>Rollback</b> — "Roll back…" for the master and "Another version…" for a server. At your own risk: the database is saved before a master rollback.</li>
+<li><b>Without GitHub access</b> — upload the release archive to <code>/root</code> and choose <code>hidevp</code> → "Update panel".</li></ul>
+</section>
+
+<section id="settings"><h2>Settings</h2>
+<ul><li><b>General</b> — service name (shown in apps), public URL, support contact, default traffic and device limits.</li>
+<li><b>Account</b> — admin login and password. Port, secret path and domain are changed in the <code>hidevp</code> console.</li>
+<li><b>Server camouflage</b> — stub site, page type, title, cabinet address, hiding the work panels' API.</li>
+<li><b>Appearance</b> — language (Russian/English) and 4 themes, buttons at the top of the page.</li></ul>
+</section>
+
+<section id="security"><h2>Security</h2>
+<ul><li>The admin panel lives on a random secret path. The password is stored as a scrypt hash, sessions as SHA-256 hashes. After 5 failed attempts an IP is blocked for 10 minutes; after 50 failed attempts from all IPs, sign-in is paused for everyone.</li>
+<li>Cookies are <code>HttpOnly</code>, <code>SameSite=Strict</code> and <code>Secure</code> over HTTPS; Origin checks, CSP, framing protection, HSTS, request size limits.</li>
+<li>Site sign-in: a 6-digit code valid for 5 minutes, 5 attempts, limits per number, IP and server. The answer is the same for existing and unknown numbers.</li>
+<li>Master → nodes: HTTPS with a pinned certificate and a 256-bit key; the management port is open only to the master IP.</li>
+<li>Only signed updates are installed. Inputs (domains, paths, service names) are validated so they can't be injected into configurations.</li>
+<li>The database, backups, keys and logs are accessible to root only.</li></ul>
+<h3>Recommendations</h3>
+<ul><li>Use a domain and HTTPS for the admin panel.</li>
+<li>Sign in over SSH with a key and disable password login; change the default SSH port.</li>
+<li>Keep backups off the server.</li>
+<li>Update the panels and the system regularly (<code>apt upgrade</code>).</li></ul>
+</section>
+
+<section id="faq"><h2>Troubleshooting</h2>
+<table><tr><th>Problem</th><th>What to do</th></tr>
+<tr><td>Admin panel doesn't open (502)</td><td><code>journalctl -u hidevp-panel -n 30 --no-pager</code>; <code>hidevp</code> → Reinstall keeping data</td></tr>
+<tr><td>Forgot the password</td><td><code>hidevp-panel reset-admin</code> on the master</td></tr>
+<tr><td>Server "offline"</td><td>Is the agent running: <code>systemctl status hidevp-node</code>; if the master IP changed — "Open the work panel API"</td></tr>
+<tr><td>Connected but no internet</td><td>"Check" → "Internet access"; server clock; camouflage site</td></tr>
+<tr><td>All servers drop for 5–15 minutes</td><td>IP blocking by the carrier: cascade, XHTTP, a new IP. Test from another network</td></tr>
+<tr><td>Hysteria2 doesn't connect</td><td>Is UDP open at the hoster? Try with and without Salamander</td></tr>
+<tr><td>"Own site" is red</td><td>A record without Cloudflare, port 80 open; <code>journalctl -u hidevp-caddy -n 30</code></td></tr>
+<tr><td>The bot is silent</td><td>Token; route to Telegram via a foreign server or proxy</td></tr>
+<tr><td>User "suspended"</td><td>Device limit exceeded — raise the limit</td></tr>
+<tr><td>Update doesn't start</td><td>GitHub access; otherwise put the archive in <code>/root</code> and use <code>hidevp</code> → "Update panel"</td></tr></table>
+</section>

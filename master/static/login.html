@@ -59,6 +59,7 @@ input.code{text-align:center;font-size:26px;letter-spacing:.4em;font-family:ui-m
     <button class="btn" id="b2" data-i="login"></button>
     <button class="btn ghost" type="button" id="resend" disabled data-i="resend"></button>
     <button class="btn ghost" type="button" id="back" data-i="change"></button>
+    <p class="muted" style="margin-top:12px;font-size:13px"><span data-i="nocode"></span> <a id="tglink2" target="_blank" rel="noopener" data-i="openbot"></a></p>
   </form>
 
   <div class="card hide" id="nouser">
@@ -77,13 +78,13 @@ const D = __DATA__;
 const $ = s => document.getElementById(s);
 const I = {
   ru: {cab:"Личный кабинет", h1:"Вход по номеру телефона", hint1:"Код подтверждения придёт в наш Telegram-бот.", phone:"Номер телефона",
-       get:"Получить код", h2:"Введите код", sent:"Мы отправили код в Telegram на аккаунт с номером", code:"Код из Telegram", login:"Войти",
+       get:"Получить код", h2:"Введите код", sent:"Если номер привязан к подписке, код придёт в Telegram на аккаунт с номером", nocode:"Код не пришёл? Номер должен быть отправлен боту.", openbot:"Открыть бота", code:"Код из Telegram", login:"Войти",
        resend:"Отправить ещё раз", change:"Изменить номер", h3:"Подписка не найдена", num:"Номер", notlinked:"не привязан ни к одной подписке.",
        offer:"Оформите подписку в нашем Telegram-боте — это займёт минуту. Оплата звёздами Telegram.",
        already:"Уже пользуетесь ботом? Отправьте в нём команду /phone, чтобы привязать номер, и попробуйте снова.",
        tg:"✈️ Оформить подписку в Telegram", other:"Ввести другой номер", support:"Поддержка", title:"вход", error:"Ошибка"},
   en: {cab:"Personal account", h1:"Sign in with your phone number", hint1:"The confirmation code will be sent to our Telegram bot.", phone:"Phone number",
-       get:"Get code", h2:"Enter the code", sent:"We sent a code in Telegram to the account with number", code:"Code from Telegram", login:"Sign in",
+       get:"Get code", h2:"Enter the code", sent:"If the number is linked to a subscription, a code will arrive in Telegram for the account with number", nocode:"No code? The number must be shared with the bot.", openbot:"Open the bot", code:"Code from Telegram", login:"Sign in",
        resend:"Send again", change:"Change number", h3:"Subscription not found", num:"Number", notlinked:"is not linked to any subscription.",
        offer:"Get a subscription in our Telegram bot — it takes a minute. Payment in Telegram Stars.",
        already:"Already using the bot? Send /phone there to link your number, then try again.",
@@ -139,6 +140,7 @@ async function requestCode() {
       if (d.bot) $("tglink").href = d.bot + "?start=site"; else $("tglink").classList.add("hide");
       show("nouser");
     } else {
+      if (d.bot) $("tglink2").href = d.bot + "?start=site"; else $("tglink2").classList.add("hide");
       $("ph").textContent = $("phone").value; show("step2"); $("code").value = ""; $("code").focus(); countdown(d.wait || 60);
     }
   } catch (e) { $("err1").textContent = e.message; $("err2").textContent = e.message; }

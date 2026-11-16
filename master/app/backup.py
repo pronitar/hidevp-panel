@@ -161,6 +161,8 @@ def _open_upload(data: bytes, td: str) -> tuple[sqlite3.Connection, dict]:
             with zipfile.ZipFile(io.BytesIO(data)) as z:
                 if "panel.db" not in z.namelist():
                     raise BackupError("В архиве нет panel.db — это не резервная копия HideVP")
+                if z.getinfo("panel.db").file_size > 1024 * 1024 * 1024:
+                    raise BackupError("Файл слишком большой")
                 path.write_bytes(z.read("panel.db"))
                 if "meta.json" in z.namelist():
                     meta = json.loads(z.read("meta.json"))
@@ -178,6 +180,8 @@ def _open_upload(data: bytes, td: str) -> tuple[sqlite3.Connection, dict]:
         raise BackupError("Файл базы повреждён")
     if not {"settings", "users", "nodes"} <= tables:
         raise BackupError("Это не база HideVP (нет нужных таблиц)")
+    for kind, name in src.execute("SELECT type, name FROM sqlite_master WHERE type IN ('trigger','view')").fetchall():
+        src.execute(f'DROP {kind.upper()} IF EXISTS "{name.replace(chr(34), "")}"')
     src.executescript(SCHEMA)
     for table, col, sql in MIGRATIONS:
         cols = {r[1] for r in src.execute(f"PRAGMA table_info({table})")}
