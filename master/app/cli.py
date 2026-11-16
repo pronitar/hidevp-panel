@@ -65,6 +65,9 @@ def main(argv=None):
     st = sub.add_parser("set-title")
     st.add_argument("title")
     sub.add_parser("get")
+    ss = sub.add_parser("set-stub")
+    ss.add_argument("state", choices=["on", "off"])
+    ss.add_argument("--kind", default="")
     pu = sub.add_parser("set-url")
     pu.add_argument("url")
     a = ap.parse_args(argv)
@@ -116,6 +119,18 @@ def main(argv=None):
         if a.password:
             ex("DELETE FROM sessions")
         print(T("Логин: ", "Login: ") + login + (T("\nПароль изменён", "\nPassword changed") if a.password else ""))
+    elif a.cmd == "set-stub":
+        set_setting("stub_on", "1" if a.state == "on" else "0")
+        if a.kind in ("personal", "construction", "studio"):
+            set_setting("stub_kind", a.kind)
+        if a.state == "on" and not get_setting("cabinet_path"):
+            set_setting("cabinet_path", "c-" + rnd(8).lower())
+        pub = get_setting("public_url")
+        if a.state == "on":
+            print(T("Главная страница — сайт-заглушка. Личный кабинет пользователей: ",
+                    "The home page is now a stub site. User cabinet: ") + f"{pub}/{get_setting('cabinet_path')}")
+        else:
+            print(T("Сайт-заглушка выключен", "Stub site disabled"))
     elif a.cmd == "set-lang":
         set_setting("lang", a.lang)
         print("Language: " + a.lang)

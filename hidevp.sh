@@ -313,8 +313,10 @@ menu_xray() {
     echo "2) $(m "Переустановить / обновить Xray-core" "Reinstall / update Xray-core")"
     echo "3) $(m "Лог Xray (последние 40 строк)" "Xray log (last 40 lines)")"
     echo "4) $(m "Проверить конфигурацию" "Test the configuration")"
+    echo "5) $(m "Открыть API work-панели (если сменился IP master-панели)" "Open the work panel API (if the master panel IP changed)")"
     echo "0) $(m "Назад" "Back")"
     case $(CHOICE) in
+      5) api_unlock; pause ;;
       1) xray_restart; pause ;;
       2) xray_reinstall; pause ;;
       3) journalctl -u xray -n 40 --no-pager -o cat; pause ;;
@@ -322,6 +324,19 @@ menu_xray() {
       *) return ;;
     esac
   done
+}
+
+api_unlock() {
+  local port t
+  port=$(python3 -c "import json;print(json.load(open('/opt/hidevp-panel/node/data/node.json'))['port'])" 2>/dev/null)
+  [ -n "$port" ] || { err "$(m "Work-панель не найдена" "Work panel not found")"; return; }
+  for t in iptables ip6tables; do
+    command -v $t >/dev/null || continue
+    while $t -w -C INPUT -p tcp --dport "$port" -j HIDEVP-API 2>/dev/null; do $t -w -D INPUT -p tcp --dport "$port" -j HIDEVP-API; done
+    $t -w -F HIDEVP-API 2>/dev/null; $t -w -X HIDEVP-API 2>/dev/null
+  done
+  rm -f /opt/hidevp-panel/node/data/api_lock.json
+  ok "$(m "API открыт. Master-панель подключится снова, и доступ закроется уже для её нового IP." "API opened. The master panel will reconnect, and access will be locked to its new IP.")"
 }
 
 web_mode() {

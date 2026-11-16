@@ -88,7 +88,7 @@ fi
 if [ ! -f "$DEST/data/cert.pem" ]; then
   echo ">>> $(m "Генерация TLS-сертификата для API" "Generating TLS certificate for the API")"
   openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650 \
-    -keyout "$DEST/data/key.pem" -out "$DEST/data/cert.pem" -subj "/CN=hidevp-node" \
+    -keyout "$DEST/data/key.pem" -out "$DEST/data/cert.pem" -subj "/CN=$PUBLIC_IP" \
     -addext "subjectAltName=IP:$PUBLIC_IP" -addext "basicConstraints=critical,CA:TRUE" \
     -addext "keyUsage=critical,digitalSignature,keyCertSign" 2>/dev/null
   chmod 600 "$DEST/data/key.pem"
@@ -117,7 +117,7 @@ Wants=network-online.target
 [Service]
 WorkingDirectory=$DEST
 Environment=NODE_HOME=$DEST
-ExecStart=$DEST/venv/bin/python -m uvicorn agent:app --host 0.0.0.0 --port $PORT --ssl-keyfile $DEST/data/key.pem --ssl-certfile $DEST/data/cert.pem --log-level warning
+ExecStart=$DEST/venv/bin/python -m uvicorn agent:app --host 0.0.0.0 --port $PORT --ssl-keyfile $DEST/data/key.pem --ssl-certfile $DEST/data/cert.pem --log-level warning --no-server-header
 Restart=always
 RestartSec=3
 

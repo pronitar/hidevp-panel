@@ -19,10 +19,10 @@ from pathlib import Path
 
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.3.2"
+VERSION = "1.4.0"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -866,11 +866,88 @@ def authorized(request: Request) -> bool:
     return hmac.compare_digest(key, node_conf()["api_key"])
 
 
+NGINX_404 = ("<html>\r\n<head><title>404 Not Found</title></head>\r\n<body>\r\n"
+             "<center><h1>404 Not Found</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n")
+LOCK_FILE = DATA / "api_lock.json"
+LOCK_CHAIN = "HIDEVP-API"
+SEEN_MASTER: list[str] = []
+
+
+def not_found() -> HTMLResponse:
+    return HTMLResponse(NGINX_404, status_code=404, headers={"server": "nginx"})
+
+
+async def not_found_handler(request, exc):
+    return not_found()
+
+
+def lock_conf() -> dict:
+    try:
+        return json.loads(LOCK_FILE.read_text())
+    except (OSError, ValueError):
+        return {"on": False, "allow": []}
+
+
+def remember_master(ip: str):
+    if not ip or ip in SEEN_MASTER[-1:]:
+        return
+    if ip in SEEN_MASTER:
+        SEEN_MASTER.remove(ip)
+    SEEN_MASTER.append(ip)
+    del SEEN_MASTER[:-6]
+
+
+def _ipt(v6: bool, *args) -> subprocess.CompletedProcess:
+    return run(["ip6tables" if v6 else "iptables", "-w", *args], timeout=20)
+
+
+def apply_api_lock(on: bool, allow: list[str]):
+    port = str(node_conf().get("port") or "")
+    if not port:
+        return
+    for v6 in (False, True):
+        jump = ["-p", "tcp", "--dport", port, "-j", LOCK_CHAIN]
+        if not on:
+            while _ipt(v6, "-C", "INPUT", *jump).returncode == 0:
+                _ipt(v6, "-D", "INPUT", *jump)
+            _ipt(v6, "-F", LOCK_CHAIN)
+            _ipt(v6, "-X", LOCK_CHAIN)
+            continue
+        ips = [a for a in allow if (":" in a) == v6]
+        _ipt(v6, "-N", LOCK_CHAIN)
+        _ipt(v6, "-F", LOCK_CHAIN)
+        for a in (["::1"] if v6 else ["127.0.0.0/8"]) + ips:
+            _ipt(v6, "-A", LOCK_CHAIN, "-s", a, "-j", "RETURN")
+        _ipt(v6, "-A", LOCK_CHAIN, "-j", "DROP")
+        if _ipt(v6, "-C", "INPUT", *jump).returncode != 0:
+            _ipt(v6, "-I", "INPUT", "1", *jump)
+
+
+def update_api_lock(on: bool, extra: list[str]):
+    import shutil
+    if not shutil.which("iptables") or not node_conf().get("port"):
+        return
+    allow = []
+    for a in list(extra) + SEEN_MASTER[::-1] + lock_conf().get("allow", []):
+        a = (a or "").strip()
+        if a and a not in allow and re.fullmatch(r"[0-9a-fA-F:.]+", a):
+            allow.append(a)
+    allow = allow[:8]
+    cur = lock_conf()
+    if cur.get("on") == on and cur.get("allow") == allow and cur.get("applied"):
+        return
+    apply_api_lock(on, allow)
+    LOCK_FILE.write_text(json.dumps({"on": on, "allow": allow, "applied": True}))
+
+
 def guard(handler):
     async def wrapper(request: Request):
         if not authorized(request):
             await asyncio.sleep(1)
+            if "x-api-key" not in request.headers:
+                return not_found()
             return JSONResponse({"error": "unauthorized"}, status_code=401)
+        remember_master(request.client.host if request.client else "")
         try:
             return await handler(request)
         except ValueError as e:
@@ -891,7 +968,15 @@ async def info(request):
 @guard
 async def put_state(request):
     state = await request.json()
-    return JSONResponse(await asyncio.to_thread(apply_state, state))
+    lock = bool(state.pop("api_lock", False))
+    ips = [request.client.host] if request.client else []
+    ips += [a for a in state.pop("panel_ips", []) or [] if isinstance(a, str)]
+    res = await asyncio.to_thread(apply_state, state)
+    try:
+        await asyncio.to_thread(update_api_lock, lock, ips)
+    except Exception as e:
+        print("api lock failed:", e, flush=True)
+    return JSONResponse(res)
 
 
 @guard
@@ -1047,6 +1132,10 @@ async def lifespan(app):
     await asyncio.to_thread(ensure_log_perms)
     if not xray_running() and XRAY_CONFIG.exists():
         await asyncio.to_thread(run, ["systemctl", "restart", XRAY_SERVICE])
+    lc = lock_conf()
+    if lc.get("on"):
+        with contextlib.suppress(Exception):
+            await asyncio.to_thread(apply_api_lock, True, lc.get("allow", []))
     task = asyncio.create_task(log_watcher())
     yield
     task.cancel()
@@ -1065,4 +1154,4 @@ app = Starlette(routes=[
     Route("/api/port/probe", port_probe, methods=["POST"]),
     Route("/api/port/release", port_release, methods=["POST"]),
     Route("/api/self-update", self_update_route, methods=["POST"]),
-], lifespan=lifespan)
+], lifespan=lifespan, exception_handlers={404: not_found_handler, 405: not_found_handler})

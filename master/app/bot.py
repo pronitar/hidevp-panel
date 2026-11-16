@@ -378,7 +378,7 @@ class BotManager:
             {"text": "English", "callback_data": "lang:en"}, {"text": "Русский", "callback_data": "lang:ru"}]]})
 
     async def ask_phone(self, chat, u):
-        site = core.public_url()
+        site = core.cabinet_url() if core.public_url() else ""
         text = T(u, "☎️ Поделитесь номером телефона кнопкой ниже — по нему можно входить на сайт"
                     + (f" {html.escape(site)}" if site else "") + ". Код для входа будет приходить сюда, в этот чат.",
                     "☎️ Share your phone number with the button below — you can use it to sign in on the website"

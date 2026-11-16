@@ -143,6 +143,14 @@ def extend_user(user_id: int, days: float):
        (base + days * DAY, user_id))
 
 
+def stub_on() -> bool:
+    return get_setting("stub_on", "0") == "1" and bool(get_setting("cabinet_path", ""))
+
+
+def cabinet_url() -> str:
+    return f"{public_url()}/{get_setting('cabinet_path')}" if stub_on() else public_url()
+
+
 def public_url() -> str:
     return (get_setting("public_url") or "").rstrip("/")
 

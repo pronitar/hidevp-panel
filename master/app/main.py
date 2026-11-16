@@ -19,7 +19,7 @@ from starlette.staticfiles import StaticFiles
 import hmac
 import random
 
-from . import backup, botui, core, nodes, notices, payments, promo, qr, stats, update
+from . import backup, botui, core, nodes, notices, payments, promo, qr, stats, stub, update
 from .i18n import LANG, tr
 from .bot import manager as bot
 from .db import ex, get_setting, init_db, prices, q, q1, set_setting
@@ -1240,7 +1240,9 @@ async def notify_update(st: dict):
 
 SETTING_KEYS = ("panel_title", "public_url", "bot_token", "admin_tg_ids", "support",
                 "default_traffic_limit_gb", "default_device_limit", "tg_route", "tg_node_id", "tg_proxy", "lang",
-                "auto_select", "client_fragment")
+                "auto_select", "client_fragment", "stub_on", "stub_kind", "stub_title", "stub_html", "cabinet_path",
+                "hide_node_api")
+RESERVED_PATHS = {"sub", "u", "api", "assets", "logout", "favicon.ico", "robots.txt"}
 TG_KEYS = ("bot_token", "tg_route", "tg_node_id", "tg_proxy")
 
 
@@ -1255,8 +1257,22 @@ async def settings(request: Request):
                     v = v.rstrip("/")
                     if v and not v.startswith(("http://", "https://")):
                         raise ApiError("Публичный адрес должен начинаться с http:// или https://")
-                if k in ("auto_select", "client_fragment"):
+                if k in ("auto_select", "client_fragment", "stub_on", "hide_node_api"):
                     v = "1" if v in ("1", "true", "True") else "0"
+                if k == "stub_kind" and v not in stub.KINDS:
+                    raise ApiError("Неизвестный вид страницы-заглушки")
+                if k == "stub_html":
+                    v = str(d[k])
+                    if len(v) > 300_000:
+                        raise ApiError("Свой HTML слишком большой — до 300 КБ")
+                if k == "stub_title":
+                    v = v[:120]
+                if k == "cabinet_path":
+                    v = v.strip("/").lower()
+                    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,39}", v):
+                        raise ApiError("Адрес кабинета: 3–40 символов, латиница, цифры и дефис")
+                    if v in RESERVED_PATHS or v == get_setting("web_path").strip("/").lower():
+                        raise ApiError("Этот адрес кабинета занят — выберите другой")
                 if k == "lang" and v not in ("ru", "en"):
                     raise ApiError("Неизвестное действие")
                 if k == "tg_route" and v not in ("direct", "node", "proxy"):
@@ -1264,6 +1280,10 @@ async def settings(request: Request):
                 if k == "tg_proxy" and v and not v.startswith(("socks5://", "socks5h://", "http://", "https://")):
                     raise ApiError("Прокси: формат socks5://host:port или http://host:port")
                 set_setting(k, v)
+        if get_setting("stub_on") == "1" and not get_setting("cabinet_path"):
+            set_setting("cabinet_path", "c-" + secrets.token_hex(4))
+        if "hide_node_api" in d:
+            request_sync()
         if "prices" in d:
             pr = {str(int(m)): int(p) for m, p in d["prices"].items() if int(p) > 0}
             set_setting("prices", json.dumps(pr))
@@ -1280,6 +1300,7 @@ async def settings(request: Request):
                     for n in q("SELECT * FROM nodes ORDER BY id")]
     out["web_port"] = get_setting("web_port")
     out["web_path"] = get_setting("web_path")
+    out["cabinet_url"] = core.cabinet_url()
     return ok(out)
 
 
@@ -1290,7 +1311,7 @@ def find_user_by_token(token: str):
 async def subscription(request: Request):
     u = find_user_by_token(request.path_params["token"])
     if not u:
-        return PlainTextResponse("Not found", status_code=404)
+        return not_found(request)
     links = core.user_links(u) if core.user_status(u) == "active" else []
     title = get_setting("panel_title", "VPN")
     headers = {
@@ -1383,7 +1404,30 @@ def bot_link() -> str:
     return f"https://t.me/{bot.username}" if bot.username else ""
 
 
+def not_found(request: Request = None):
+    if core.stub_on():
+        return HTMLResponse(stub.NGINX_404, status_code=404, headers={"server": "nginx"})
+    return PlainTextResponse("Not Found", status_code=404)
+
+
+async def not_found_handler(request: Request, exc):
+    return not_found(request)
+
+
 async def home(request: Request):
+    if core.stub_on():
+        page = stub.render(get_setting("stub_kind", "personal"), get_setting("stub_title", ""), get_setting("stub_html", ""))
+        return HTMLResponse(page, headers={"server": "nginx", "cache-control": "public, max-age=600"})
+    return cabinet_page(request)
+
+
+async def cabinet(request: Request):
+    if core.stub_on() and request.path_params["slug"] == get_setting("cabinet_path"):
+        return cabinet_page(request)
+    return not_found(request)
+
+
+def cabinet_page(request: Request):
     tok = request.cookies.get(USER_COOKIE)
     if tok and find_user_by_token(tok):
         return RedirectResponse(f"/u/{tok}", status_code=302)
@@ -1443,7 +1487,7 @@ async def auth_verify(request: Request):
 
 
 async def user_logout(request: Request):
-    resp = RedirectResponse("/", status_code=302)
+    resp = RedirectResponse("/" + get_setting("cabinet_path") if core.stub_on() else "/", status_code=302)
     resp.delete_cookie(USER_COOKIE, path="/")
     return resp
 
@@ -1570,6 +1614,7 @@ def build_app() -> Starlette:
         Route("/api/auth/request", api(auth_request, auth=False), methods=["POST"]),
         Route("/api/auth/verify", api(auth_verify, auth=False), methods=["POST"]),
         Route("/logout", user_logout),
+        Route("/{slug:str}", cabinet),
     ]
 
     @contextlib.asynccontextmanager
@@ -1590,6 +1635,7 @@ def build_app() -> Starlette:
         await bot.stop()
 
     from starlette.middleware import Middleware
-    app = Starlette(routes=routes, lifespan=lifespan, middleware=[Middleware(SecurityMiddleware)])
+    app = Starlette(routes=routes, lifespan=lifespan, middleware=[Middleware(SecurityMiddleware)],
+                    exception_handlers={404: not_found_handler, 405: not_found_handler})
     app.state.base = base
     return app

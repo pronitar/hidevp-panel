@@ -5,7 +5,7 @@ import time
 
 from . import core, nodes
 from .bot import manager as bot
-from .db import ex, q, q1
+from .db import ex, get_setting, q, q1
 from .events import sync_event
 
 log = logging.getLogger("sync")
@@ -45,6 +45,24 @@ def _agent_ok(node, need: str) -> bool:
         return False
 
 
+_PANEL_IPS = {"at": 0.0, "ips": set()}
+
+
+def _panel_ips() -> set:
+    import re
+    import socket
+    if _PANEL_IPS["at"] > time.time() - 600:
+        return _PANEL_IPS["ips"]
+    host = re.sub(r"^https?://", "", core.public_url()).split("/")[0].split(":")[0].strip("[]")
+    ips = set()
+    try:
+        ips = {a[4][0] for a in socket.getaddrinfo(host, None)} if host else set()
+    except OSError:
+        pass
+    _PANEL_IPS.update(at=time.time(), ips=ips)
+    return ips
+
+
 def desired_state(node, users) -> dict:
     vpns = q("SELECT * FROM vpns WHERE node_id=? AND enabled=1", (node["id"],))
     if not _agent_ok(node, "1.1.0"):
@@ -68,6 +86,8 @@ def desired_state(node, users) -> dict:
     socks = ({"port": int(node["socks_port"]), "user": node["socks_user"], "pass": node["socks_pass"]}
              if node.get("socks_port") and node.get("socks_pass") and _agent_ok(node, "1.2.3") else None)
     return {
+        "api_lock": get_setting("hide_node_api", "1") == "1",
+        "panel_ips": sorted(_panel_ips()),
         "socks": socks,
         "inbounds": [{k: (v.get(k) or ("vless" if k == "protocol" else "")) if k not in ("id", "port") else v[k]
                       for k in INBOUND_KEYS} for v in vpns],

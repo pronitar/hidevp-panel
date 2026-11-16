@@ -244,6 +244,15 @@ echo
 if [ ${#INIT_ARGS[@]} -gt 0 ]; then
   hidevp-panel init "${INIT_ARGS[@]}" --lang "$HV_LANG"
 fi
+if [ -t 0 ] && [ ! -f "$DEST/data/.stub-asked" ]; then
+  echo
+  echo "$(m "Сайт-заглушка: на главной странице домена будет обычный сайт (личная страница),
+а вход для пользователей переедет на секретный адрес. Так сервер не выдаёт себя как VPN-сервис." "Stub site: the domain's home page shows an ordinary website (a personal page),
+and the user sign-in moves to a secret address. The server then doesn't look like a VPN service.")"
+  read -rp "$(m "Включить сайт-заглушку? [Y/n]: " "Enable the stub site? [Y/n]: ")" STUB_ANS
+  case "${STUB_ANS:-y}" in [nNнН]*) hidevp-panel set-stub off ;; *) hidevp-panel set-stub on ;; esac
+  touch "$DEST/data/.stub-asked"
+fi
 chmod 700 "$DEST/data" 2>/dev/null || true
 chmod 600 "$DEST"/data/panel.db* 2>/dev/null || true
 [ -d "$DEST/data/backups" ] && chmod -R go-rwx "$DEST/data/backups"
