@@ -179,10 +179,27 @@ journalctl -u xray -f           # Xray log</pre>
 <section id="settings"><h2>Settings</h2>
 <ul><li><b>General</b> — service name (shown in apps), public URL, support contact, default traffic and device limits.</li>
 <li><b>Account</b> — admin login and password. Port, secret path and domain are changed in the <code>hidevp</code> console.</li>
+<li><b>Happ and INCY apps</b> — how the subscription looks and behaves in the apps, see the section below.</li>
 <li><b>Server camouflage</b> — stub site, page type, title, cabinet address, hiding the work panels' API.</li>
 <li><b>Appearance</b> — language (Russian/English) and 4 themes, buttons at the top of the page.</li></ul>
 </section>
 
+<section id="apps"><h2>Happ and INCY apps</h2>
+<p>Settings → "Happ and INCY apps" controls how the subscription looks and behaves in the apps. Changes reach the device on the next subscription update (the refresh button in the app or auto-update).</p>
+<table><tr><th>Setting</th><th>What it does</th></tr>
+<tr><td>Subscription name</td><td>Title of the subscription card, up to 25 characters. Empty — the service name.</td></tr>
+<tr><td>Auto-update</td><td>How often the app refreshes the subscription, 1–168 hours.</td></tr>
+<tr><td>Announcement</td><td>Text under the subscription card, up to 200 characters, emoji and line breaks allowed. An active notice from "Notices" and the inactive-subscription message are shown instead of it.</td></tr>
+<tr><td>Support button</td><td>Taken from "Support contact": <code>@username</code> or an https://t.me/… link — the app shows the Telegram icon.</td></tr>
+<tr><td>"Website" button</td><td>Opens the user's personal page.</td></tr>
+<tr><td>Ping, sorting, auto-connect</td><td>Ping method, server order, connecting on launch to the last, fastest or a random server.</td></tr>
+<tr><td>Pin, keep expanded</td><td>Subscription at the top of the list, server list always expanded.</td></tr>
+<tr><td>INCY only</td><td>Announcement link and e-mail, profile description, hiding the subscription link from copy and QR.</td></tr></table>
+<h3>Captions under servers</h3>
+<p>The VPN field "Caption under the name in the app" (up to 30 characters) replaces the protocol line, e.g. "For YouTube and social media". Empty — the app shows the protocol.</p>
+<h3>Provider ID for Happ</h3>
+<p>Some Happ features work only for providers with a Provider ID: captions under servers, the expiry warning with a renew button, and blocking server settings. Sign up at happ-proxy.com, copy the ID from your profile and paste it into "Happ Provider ID". INCY shows captions without it.</p>
+</section>
 <section id="security"><h2>Security</h2>
 <ul><li>The admin panel lives on a random secret path. The password is stored as a scrypt hash, sessions as SHA-256 hashes. After 5 failed attempts an IP is blocked for 10 minutes; after 50 failed attempts from all IPs, sign-in is paused for everyone.</li>
 <li>Cookies are <code>HttpOnly</code>, <code>SameSite=Strict</code> and <code>Secure</code> over HTTPS; Origin checks, CSP, framing protection, HSTS, request size limits.</li>

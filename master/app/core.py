@@ -203,6 +203,8 @@ def vpn_link(u: dict, vpn: dict, node: dict) -> str:
     proto = vpn.get("protocol") or "vless"
     host, port = _host(node), vpn["port"]
     title = quote(f"{flag(node['country_code'])} {vpn['name']}")
+    if vpn.get("descr"):
+        title += "?serverDescription=" + base64.b64encode(vpn["descr"].encode()).decode()
     if proto == "trojan":
         return f"trojan://{quote(u['uuid'])}@{host}:{port}?{urlencode(_reality_params(vpn), quote_via=quote)}#{title}"
     if proto == "ss":
@@ -352,7 +354,7 @@ def user_json(u: dict, lang: str = "ru") -> list[dict]:
     for r in rows:
         name = f"{flag(r['n_cc'])} {r['name']}"
         out.append(_client_config(name, [client_outbound(u, r, _host({"host": r["n_host"]}).strip("[]"), "proxy")],
-                                  False))
+                                  False, r.get("descr") or ""))
     return out
 
 

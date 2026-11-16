@@ -23,7 +23,7 @@ import random
 from . import backup, botui, core, nodes, notices, payments, promo, qr, stats, stub, update
 from .i18n import LANG, tr
 from .bot import manager as bot
-from .db import ex, get_setting, init_db, prices, q, q1, set_setting
+from .db import DEFAULT_SETTINGS, ex, get_setting, init_db, prices, q, q1, set_setting
 from .events import request_sync
 from .sync import LAST_RUN, _agent_ok, active_users, push_state, sync_loop
 
@@ -617,6 +617,7 @@ def validate_vpn(d: dict, node_id: int, vid: int | None = None) -> dict:
                upstream_id=upstream_id,
                obfs_on=bool(d.get("obfs_on", bool(d.get("obfs")))),
                name=str(d.get("name") or "").strip()[:60] or f"{n['name']} · {label}",
+               descr=" ".join(str(d.get("descr") or "").split())[:30],
                enabled=1 if d.get("enabled", True) else 0, sort=int(d.get("sort") or 0))
     return out
 
@@ -648,9 +649,10 @@ async def vpns_list(request: Request):
         v = validate_vpn(d, int(d.get("node_id") or 0))
         await port_guard(v["node_id"], v["port"], None, bool(d.get("force")), v["protocol"])
         vid = ex("""INSERT INTO vpns(name,node_id,port,transport,sni,dest,fingerprint,path,service_name,enabled,sort,
-                    protocol,upstream_id,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    protocol,upstream_id,descr,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                  (v["name"], v["node_id"], v["port"], v["transport"], v["sni"], v["dest"], v["fingerprint"],
-                  v["path"], v["service_name"], v["enabled"], v["sort"], v["protocol"], v["upstream_id"], time.time()))
+                  v["path"], v["service_name"], v["enabled"], v["sort"], v["protocol"], v["upstream_id"], v["descr"],
+                  time.time()))
         vpn_secrets(vid, v, regen=True)
         request_sync()
         return ok(vpn_out(q1("SELECT * FROM vpns WHERE id=?", (vid,))))
@@ -678,9 +680,10 @@ async def vpn_one(request: Request):
                 or (nv["enabled"] and not v["enabled"])):
             await port_guard(nv["node_id"], nv["port"], vid, bool(d.get("force")), nv["protocol"])
         ex("""UPDATE vpns SET name=?,node_id=?,port=?,transport=?,sni=?,dest=?,fingerprint=?,path=?,
-              service_name=?,enabled=?,sort=?,protocol=?,upstream_id=? WHERE id=?""",
+              service_name=?,enabled=?,sort=?,protocol=?,upstream_id=?,descr=? WHERE id=?""",
            (nv["name"], nv["node_id"], nv["port"], nv["transport"], nv["sni"], nv["dest"], nv["fingerprint"],
-            nv["path"], nv["service_name"], nv["enabled"], nv["sort"], nv["protocol"], nv["upstream_id"], vid))
+            nv["path"], nv["service_name"], nv["enabled"], nv["sort"], nv["protocol"], nv["upstream_id"], nv["descr"],
+            vid))
         vpn_secrets(vid, nv, regen=bool(d.get("regen_keys")))
         request_sync()
     return ok(vpn_out(q1("SELECT * FROM vpns WHERE id=?", (vid,))))
@@ -1265,9 +1268,108 @@ async def notify_update(st: dict):
 SETTING_KEYS = ("panel_title", "public_url", "bot_token", "admin_tg_ids", "support",
                 "default_traffic_limit_gb", "default_device_limit", "tg_route", "tg_node_id", "tg_proxy", "lang",
                 "auto_select", "client_fragment", "stub_on", "stub_kind", "stub_title", "stub_html", "cabinet_path",
-                "hide_node_api")
+                "hide_node_api") + tuple(k for k in DEFAULT_SETTINGS if k.startswith("app_"))
+APP_FLAGS = ("app_web", "app_ping_open", "app_pin", "app_expand", "app_hide", "app_expire", "app_hide_url")
+APP_CHOICES = {"app_ping": ("", "proxy", "proxy-head", "tcp", "icmp"), "app_sort": ("", "without", "ping", "alphabet"),
+               "app_autoconnect": ("", "lastused", "lowestdelay", "random")}
 RESERVED_PATHS = {"sub", "u", "api", "assets", "logout", "favicon.ico", "robots.txt"}
 TG_KEYS = ("bot_token", "tg_route", "tg_node_id", "tg_proxy")
+
+
+def validate_app_setting(k: str, v: str) -> str:
+    v = " ".join(v.split()) if k != "app_announce" else v.replace("\r", "")
+    if k in APP_CHOICES and v not in APP_CHOICES[k]:
+        raise ApiError("Неизвестное значение настройки приложения")
+    if k == "app_title":
+        return v[:25]
+    if k == "app_desc":
+        return v[:200]
+    if k == "app_announce":
+        if len(v) > 200:
+            raise ApiError("Объявление: до 200 символов")
+        return v
+    if k == "app_interval":
+        try:
+            n = int(v or 6)
+        except ValueError:
+            raise ApiError("Интервал обновления: целое число часов")
+        if not 1 <= n <= 168:
+            raise ApiError("Интервал обновления: от 1 до 168 часов")
+        return str(n)
+    if k == "app_announce_url" and v and not re.fullmatch(r"https?://[^\s<>\"']{3,300}", v):
+        raise ApiError("Ссылка объявления должна начинаться с https://")
+    if k == "app_email" and v and not re.fullmatch(r"[^@\s]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}", v):
+        raise ApiError("Неверный e-mail поддержки")
+    if k == "app_provider" and v and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", v):
+        raise ApiError("Provider ID: латиница, цифры, дефис и подчёркивание")
+    return v
+
+
+def _b64h(text: str) -> str:
+    return "base64:" + base64.b64encode(text.encode()).decode()
+
+
+def support_url() -> str:
+    sup = get_setting("support").strip()
+    if sup.startswith(("http://", "https://")):
+        return sup
+    if re.fullmatch(r"@?[A-Za-z0-9_]{4,32}", sup):
+        return "https://t.me/" + sup.lstrip("@")
+    return ""
+
+
+def app_headers(u: dict) -> dict:
+    g = get_setting
+    title = (g("app_title") or g("panel_title", "VPN") or "VPN")[:25]
+    st = core.user_status(u)
+    h = {
+        "profile-title": _b64h(title),
+        "profile-update-interval": g("app_interval") or "6",
+        "subscription-userinfo": f"upload={u['used_up']}; download={u['used_down']}; "
+                                 f"total={u['traffic_limit']}; expire={0 if u.get('forever') else int(u['expires_at'])}",
+        "content-disposition": f'attachment; filename="{title}"'.encode("ascii", "ignore").decode(),
+        "cache-control": "no-store",
+    }
+    if g("app_web") != "0":
+        h["profile-web-page-url"] = core.user_page_url(u)
+    if g("app_desc"):
+        h["profile-description"] = _b64h(g("app_desc"))
+    if support_url():
+        h["support-url"] = support_url()
+    if g("app_email"):
+        h["support-email"] = g("app_email")
+    ann = notices.announce(u, core.user_lang(u)) or g("app_announce")
+    if st != "active":
+        ann = f"Подписка неактивна: {core.STATUS_TEXT[st]}" if core.user_lang(u) != "en" else \
+            f"Subscription inactive: {core.STATUS_TEXT_EN[st]}"
+    if ann:
+        h["announce"] = _b64h(ann[:200])
+    if g("app_announce_url") and ann:
+        h["announce-url"] = g("app_announce_url")
+    if g("app_provider"):
+        h["providerid"] = g("app_provider")
+    for key, header in (("app_ping", "ping-type"), ("app_sort", "subscriptions-sort-type"),
+                        ("app_autoconnect", "subscription-autoconnect-type")):
+        if g(key):
+            h[header] = g(key)
+    if g("app_autoconnect"):
+        h["subscription-autoconnect"] = "1"
+    if g("app_ping_open") == "1":
+        h["subscription-ping-onopen-enabled"] = "1"
+    if g("app_pin") == "1":
+        h["subscription-pin"] = "1"
+    if g("app_expand") == "1":
+        h["subscriptions-collapse"] = "0"
+        h["subscriptions-expand-now"] = "1"
+    if g("app_hide") == "1":
+        h["hide-settings"] = "1"
+    if g("app_hide_url") == "1":
+        h["hide-url"] = "1"
+    if g("app_expire") != "0" and not u.get("forever"):
+        h["sub-expire"] = "1"
+        h["notification-subs-expire"] = "1"
+        h["sub-expire-button-link"] = core.user_page_url(u)
+    return h
 
 
 async def settings(request: Request):
@@ -1281,7 +1383,9 @@ async def settings(request: Request):
                     v = v.rstrip("/")
                     if v and not v.startswith(("http://", "https://")):
                         raise ApiError("Публичный адрес должен начинаться с http:// или https://")
-                if k in ("auto_select", "client_fragment", "stub_on", "hide_node_api"):
+                if k.startswith("app_"):
+                    v = validate_app_setting(k, v)
+                if k in ("auto_select", "client_fragment", "stub_on", "hide_node_api") + APP_FLAGS:
                     v = "1" if v in ("1", "true", "True") else "0"
                 if k == "stub_kind" and v not in stub.KINDS:
                     raise ApiError("Неизвестный вид страницы-заглушки")
@@ -1337,25 +1441,7 @@ async def subscription(request: Request):
     if not u:
         return not_found(request)
     links = core.user_links(u) if core.user_status(u) == "active" else []
-    title = get_setting("panel_title", "VPN")
-    headers = {
-        "profile-title": "base64:" + base64.b64encode(title.encode()).decode(),
-        "profile-update-interval": "6",
-        "subscription-userinfo": f"upload={u['used_up']}; download={u['used_down']}; "
-                                 f"total={u['traffic_limit']}; expire={0 if u.get('forever') else int(u['expires_at'])}",
-        "profile-web-page-url": core.user_page_url(u),
-        "content-disposition": f'attachment; filename="{title}"'.encode("ascii", "ignore").decode(),
-        "cache-control": "no-store",
-    }
-    sup = get_setting("support")
-    if sup.startswith(("http://", "https://")):
-        headers["support-url"] = sup
-    ann = notices.announce(u, core.user_lang(u))
-    if ann:
-        headers["announce"] = "base64:" + base64.b64encode(ann.encode()).decode()
-    if core.user_status(u) != "active":
-        headers["announce"] = "base64:" + base64.b64encode(
-            f"Подписка неактивна: {core.STATUS_TEXT[core.user_status(u)]}".encode()).decode()
+    headers = app_headers(u)
     ua = request.headers.get("user-agent", "").lower()
     if (core.json_sub_on() and core.user_status(u) == "active" and links
             and (any(k in ua for k in ("happ", "incy")) or request.query_params.get("format") == "json")):

@@ -65,6 +65,7 @@ Hysteria2 needs Xray 26.3.27 or newer on the node — the installer sets up the 
 - **Backups.** Automatic (daily, weekly or monthly), full or selective, restore by merging or replacing.
 - **Updates.** Versions of all panels on one page, one-click update, rollback to an older version. Packages are signed with Ed25519.
 - **Website.** Phone number login (the code arrives in the bot), personal page with a QR code, renewal and "Add to Happ / INCY" buttons.
+- **Happ and INCY app settings.** Subscription name, announcement with emoji, captions under servers, support and website buttons, auto-update interval, ping method, sorting, auto-connect, pinning, expiry warning, Happ Provider ID.
 - **Documentation.** A "Documentation" tab in the admin panel: installation, protocols and encryption, camouflage, bot, payments, updates, troubleshooting, with search.
 - Admin panel, bot and website in Russian and English. Four admin panel themes.
 
