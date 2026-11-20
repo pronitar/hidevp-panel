@@ -302,7 +302,7 @@ Start with **Servers → Check**: it shows the cause of most VPN problems.
 | Server is "Offline" | On the node: `systemctl status hidevp-node`; check that the API port is open at the hosting provider. Cards open instantly; each server's data loads separately |
 | "Port is used by another program" | Usually an old x-ui: `x-ui stop && systemctl disable x-ui`, then "Reload panel". Or choose another port |
 | Xray does not start | The error is shown on the server card; `hidevp` → Xray → fix permissions or reinstall |
-| The master panel can't reach a server after its IP changed | On the server: `hidevp` → Xray → "Open the work panel API". Access is locked again for the new IP |
+| The master panel can't reach a server after its IP changed | With a domain: update the A record, servers reopen access by themselves within minutes (work panel 1.7.1). Without a domain: on the server `hidevp` → Xray → "Open the work panel API" |
 | "Own site" doesn't work | In "Check", look at "Own site … works". Check the domain's A record (no Cloudflare orange cloud) and that port 80 is open at the hoster. Log: `journalctl -u hidevp-caddy -n 30` |
 | After a while the connection to all servers is lost | If "Check" is green and another network (Wi-Fi ↔ mobile) works, it's blocking on the provider side: try XHTTP, Hysteria2, another port, camouflage site or IP. If everyone drops at once, run `journalctl -u xray -u hidevp-node --since "1 hour ago"`, `df -h`, `free -m` on the node. Turn on "Auto server selection" so the app moves to a working server by itself |
 | The app connects but there is no internet | "Check" on the server; refresh the subscription in the app, try XHTTP, another protocol (e.g. Hysteria2), another port or camouflage site |

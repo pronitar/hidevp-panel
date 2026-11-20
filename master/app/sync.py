@@ -63,6 +63,20 @@ def _panel_ips() -> set:
     return ips
 
 
+def _panel_host() -> str:
+    import ipaddress
+    from urllib.parse import urlsplit
+    try:
+        host = urlsplit(core.public_url()).hostname or ""
+    except ValueError:
+        return ""
+    try:
+        ipaddress.ip_address(host)
+        return ""
+    except ValueError:
+        return host.lower()
+
+
 def desired_state(node, users) -> dict:
     vpns = q("SELECT * FROM vpns WHERE node_id=? AND enabled=1", (node["id"],))
     if not _agent_ok(node, "1.1.0"):
@@ -93,6 +107,7 @@ def desired_state(node, users) -> dict:
         "mtproto": mtproto,
         "api_lock": get_setting("hide_node_api", "1") == "1",
         "panel_ips": sorted(_panel_ips()),
+        "panel_host": _panel_host(),
         "socks": socks,
         "inbounds": [{k: (v.get(k) or ("vless" if k == "protocol" else "")) if k not in ("id", "port") else v[k]
                       for k in INBOUND_KEYS} for v in vpns],

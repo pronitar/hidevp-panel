@@ -64,7 +64,7 @@ journalctl -u xray -f           # Xray log</pre>
 <ul><li><b>Check</b> — diagnostics: Xray running, ports listening and reachable, firewall, camouflage site, own site and its certificate, internet access through each connection, clock accuracy. Red items come with a hint.</li>
 <li><b>SOCKS5</b> — a login/password proxy for the administrator only: a <code>socks5://</code> link, an app import link and a Telegram proxy link. It is never added to user subscriptions. Traffic is not encrypted — use it for your own tasks.</li>
 <li><b>Edit</b> — name, address, country. <b>Delete</b> removes the server from the panel (the server itself is untouched).</li></ul>
-<p>The work panel management port is closed to everyone except the master panel's IP by default. If the master IP changes, run on the server: <code>hidevp</code> → Xray → "Open the work panel API".</p>
+<p>The work panel management port is closed to everyone except the master panel's IP by default. If the master panel uses a domain, after its IP changes just update the A record: servers check the domain every 3 minutes and open the port for the new address by themselves (work panel 1.7.1). If the panel uses an IP, on each server run: <code>hidevp</code> → Xray → "Open the work panel API".</p>
 </section>
 
 <section id="vpn"><h2>VPN connections and encryption</h2>

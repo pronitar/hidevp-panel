@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.7.0"
+VERSION = "1.7.1"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -1054,10 +1054,24 @@ def apply_api_lock(on: bool, allow: list[str]):
             _ipt(v6, "-I", "INPUT", "1", *jump)
 
 
-def update_api_lock(on: bool, extra: list[str]):
+HOST_NAME_RE = re.compile(r"(?=.{1,253}$)([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]{0,61}[A-Za-z0-9]")
+
+
+def resolve_host(host: str) -> list[str]:
+    if not host or not HOST_NAME_RE.fullmatch(host):
+        return []
+    try:
+        return sorted({a[4][0] for a in socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)})
+    except OSError:
+        return []
+
+
+def update_api_lock(on: bool, extra: list[str], host: str | None = None):
     import shutil
     if not shutil.which("iptables") or not node_conf().get("port"):
         return
+    if host is None:
+        host = lock_conf().get("host", "")
     allow = []
     for a in list(extra) + SEEN_MASTER[::-1] + lock_conf().get("allow", []):
         a = (a or "").strip()
@@ -1066,9 +1080,29 @@ def update_api_lock(on: bool, extra: list[str]):
     allow = allow[:8]
     cur = lock_conf()
     if cur.get("on") == on and cur.get("allow") == allow and cur.get("applied"):
+        if cur.get("host", "") != host:
+            LOCK_FILE.write_text(json.dumps({**cur, "host": host}))
         return
     apply_api_lock(on, allow)
-    LOCK_FILE.write_text(json.dumps({"on": on, "allow": allow, "applied": True}))
+    LOCK_FILE.write_text(json.dumps({"on": on, "allow": allow, "applied": True, "host": host}))
+
+
+def follow_master():
+    lc = lock_conf()
+    if not lc.get("on") or not lc.get("host"):
+        return
+    ips = resolve_host(lc["host"])
+    new = [a for a in ips if a not in lc.get("allow", [])]
+    if new:
+        print("master address changed:", lc["host"], "->", ", ".join(new), flush=True)
+        update_api_lock(True, new + ips, lc["host"])
+
+
+async def lock_watcher():
+    while True:
+        await asyncio.sleep(180)
+        with contextlib.suppress(Exception):
+            await asyncio.to_thread(follow_master)
 
 
 def guard(handler):
@@ -1102,6 +1136,7 @@ async def put_state(request):
     lock = bool(state.pop("api_lock", False))
     ips = [request.client.host] if request.client else []
     ips += [a for a in state.pop("panel_ips", []) or [] if isinstance(a, str)]
+    host = str(state.pop("panel_host", "") or "")
     mt = state.pop("mtproto", None)
     res = await asyncio.to_thread(apply_state, state)
     try:
@@ -1110,7 +1145,7 @@ async def put_state(request):
         print("mtproto failed:", e, flush=True)
         res = {**res, "mtproto_error": str(e)[:500]}
     try:
-        await asyncio.to_thread(update_api_lock, lock, ips)
+        await asyncio.to_thread(update_api_lock, lock, ips, host if HOST_NAME_RE.fullmatch(host) else "")
     except Exception as e:
         print("api lock failed:", e, flush=True)
     return JSONResponse(res)
@@ -1300,8 +1335,12 @@ async def lifespan(app):
         with contextlib.suppress(Exception):
             await asyncio.to_thread(apply_api_lock, True, lc.get("allow", []))
     task = asyncio.create_task(log_watcher())
+    lw = asyncio.create_task(lock_watcher())
+    with contextlib.suppress(Exception):
+        await asyncio.to_thread(follow_master)
     yield
     task.cancel()
+    lw.cancel()
 
 
 app = Starlette(routes=[
