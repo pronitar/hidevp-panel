@@ -59,6 +59,18 @@ CREATE TABLE IF NOT EXISTS promos (
 CREATE TABLE IF NOT EXISTS promo_uses (
     id INTEGER PRIMARY KEY, promo_id INTEGER, user_id INTEGER, payment_id INTEGER,
     months INTEGER, amount INTEGER, full_amount INTEGER, created REAL);
+CREATE TABLE IF NOT EXISTS devices (
+    id INTEGER PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, hwid TEXT,
+    os TEXT DEFAULT '', model TEXT DEFAULT '', app TEXT DEFAULT '', ip TEXT DEFAULT '',
+    first_seen REAL, last_seen REAL, UNIQUE(user_id, hwid));
+CREATE TABLE IF NOT EXISTS ext_payments (
+    id INTEGER PRIMARY KEY, provider TEXT, ext_id TEXT DEFAULT '', user_id INTEGER, months INTEGER,
+    amount INTEGER, full_amount INTEGER, currency TEXT, promo_id INTEGER DEFAULT 0, status TEXT,
+    url TEXT DEFAULT '', chat_id INTEGER DEFAULT 0, created REAL);
+CREATE INDEX IF NOT EXISTS ext_payments_s ON ext_payments(status);
+CREATE TABLE IF NOT EXISTS scanners (
+    ip TEXT PRIMARY KEY, first REAL, last REAL, hits INTEGER DEFAULT 0, paths TEXT DEFAULT '[]',
+    ua TEXT DEFAULT '', banned_until REAL DEFAULT 0, reported INTEGER DEFAULT 0);
 """
 
 DEFAULT_SETTINGS = {
@@ -78,6 +90,28 @@ DEFAULT_SETTINGS = {
     "stub_html": "",
     "cabinet_path": "",
     "hide_node_api": "1",
+    "device_mode": "ip",
+    "hwid_ttl_days": "30",
+    "hwid_strict": "0",
+    "sub_hide_offline": "0",
+    "trial_days": "0",
+    "trial_phone": "0",
+    "ref_on": "0",
+    "ref_days": "7",
+    "ref_new_days": "0",
+    "wb_on": "0",
+    "wb_days": "3",
+    "wb_discount": "20",
+    "wb_valid": "7",
+    "churn_on": "0",
+    "scan_detect": "1",
+    "scan_ban": "0",
+    "scan_digest": "0",
+    "mon_on": "1",
+    "mon_down_min": "3",
+    "mon_disk": "90",
+    "mon_mem": "95",
+    "mon_xray": "1",
     "app_title": "",
     "app_desc": "",
     "app_interval": "6",
@@ -151,6 +185,28 @@ MIGRATIONS = [
     ("vpns", "upstream_id", "ALTER TABLE vpns ADD COLUMN upstream_id INTEGER DEFAULT 0"),
     ("vpns", "bridge_uuid", "ALTER TABLE vpns ADD COLUMN bridge_uuid TEXT DEFAULT ''"),
     ("vpns", "descr", "ALTER TABLE vpns ADD COLUMN descr TEXT DEFAULT ''"),
+    ("users", "source", "ALTER TABLE users ADD COLUMN source TEXT DEFAULT ''"),
+    ("users", "ref_by", "ALTER TABLE users ADD COLUMN ref_by INTEGER DEFAULT 0"),
+    ("users", "ref_rewarded", "ALTER TABLE users ADD COLUMN ref_rewarded INTEGER DEFAULT 0"),
+    ("users", "trial_at", "ALTER TABLE users ADD COLUMN trial_at REAL DEFAULT 0"),
+    ("users", "trial_phone", "ALTER TABLE users ADD COLUMN trial_phone TEXT DEFAULT ''"),
+    ("users", "wb_sent", "ALTER TABLE users ADD COLUMN wb_sent REAL DEFAULT 0"),
+    ("users", "churn_asked", "ALTER TABLE users ADD COLUMN churn_asked REAL DEFAULT 0"),
+    ("users", "churn_reason", "ALTER TABLE users ADD COLUMN churn_reason TEXT DEFAULT ''"),
+    ("users", "churn_at", "ALTER TABLE users ADD COLUMN churn_at REAL DEFAULT 0"),
+    ("promos", "user_id", "ALTER TABLE promos ADD COLUMN user_id INTEGER DEFAULT 0"),
+    ("promos", "kind", "ALTER TABLE promos ADD COLUMN kind TEXT DEFAULT ''"),
+    ("nodes", "mt_port", "ALTER TABLE nodes ADD COLUMN mt_port INTEGER DEFAULT 0"),
+    ("nodes", "mt_domain", "ALTER TABLE nodes ADD COLUMN mt_domain TEXT DEFAULT ''"),
+    ("nodes", "mt_key", "ALTER TABLE nodes ADD COLUMN mt_key TEXT DEFAULT ''"),
+    ("nodes", "tl_gb", "ALTER TABLE nodes ADD COLUMN tl_gb REAL DEFAULT 0"),
+    ("nodes", "tl_period", "ALTER TABLE nodes ADD COLUMN tl_period TEXT DEFAULT 'month'"),
+    ("nodes", "tl_day", "ALTER TABLE nodes ADD COLUMN tl_day INTEGER DEFAULT 1"),
+    ("nodes", "tl_mode", "ALTER TABLE nodes ADD COLUMN tl_mode TEXT DEFAULT 'both'"),
+    ("nodes", "tl_used", "ALTER TABLE nodes ADD COLUMN tl_used INTEGER DEFAULT 0"),
+    ("nodes", "tl_start", "ALTER TABLE nodes ADD COLUMN tl_start REAL DEFAULT 0"),
+    ("nodes", "tl_over", "ALTER TABLE nodes ADD COLUMN tl_over INTEGER DEFAULT 0"),
+    ("nodes", "net_last", "ALTER TABLE nodes ADD COLUMN net_last TEXT DEFAULT ''"),
     ("nodes", "socks_port", "ALTER TABLE nodes ADD COLUMN socks_port INTEGER DEFAULT 0"),
     ("nodes", "socks_user", "ALTER TABLE nodes ADD COLUMN socks_user TEXT DEFAULT ''"),
     ("nodes", "socks_pass", "ALTER TABLE nodes ADD COLUMN socks_pass TEXT DEFAULT ''"),
@@ -164,6 +220,7 @@ def init_db():
         if col not in cols:
             conn().execute(sql)
     conn().execute("CREATE INDEX IF NOT EXISTS users_phone ON users(phone)")
+    conn().execute("CREATE INDEX IF NOT EXISTS users_ref ON users(ref_by)")
     for k, v in DEFAULT_SETTINGS.items():
         conn().execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
 

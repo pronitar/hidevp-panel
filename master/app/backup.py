@@ -15,11 +15,11 @@ PERIODS = {"day": 86400, "week": 7 * 86400, "month": 30 * 86400}
 ACCESS_SETTINGS = ("web_port", "web_path", "listen_host", "public_url")
 MAX_SIZE = 100 * 1024 * 1024
 PARTS = {
-    "users": ("users",),
+    "users": ("users", "devices"),
     "servers": ("nodes",),
     "vpns": ("vpns",),
     "stats": (),
-    "payments": ("payments", "crypto_invoices", "manual_payments"),
+    "payments": ("payments", "crypto_invoices", "manual_payments", "ext_payments"),
     "promos": ("promos", "promo_uses"),
     "notices": ("notices", "notice_msgs"),
     "settings": ("settings",),
@@ -230,6 +230,8 @@ def restore(data: bytes, mode: str) -> dict:
 def _copy_table(src: sqlite3.Connection, dst: sqlite3.Connection, table: str):
     have = set(_cols(src, table))
     cols = [c for c in _cols(dst, table) if c in have]
+    if not cols:
+        return
     rows = [tuple(r) for r in src.execute(f"SELECT {', '.join(cols)} FROM {table}")]
     if rows:
         dst.executemany(f"INSERT INTO {table}({', '.join(cols)}) VALUES({', '.join('?' * len(cols))})", rows)

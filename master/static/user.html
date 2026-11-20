@@ -62,15 +62,21 @@ const I = {
        traffic:"Трафик", unlimited:"без ограничений", connect:"Подключение", connect_hint:"Нажмите кнопку на устройстве, где установлено приложение {app}, или отсканируйте QR-код в нём.",
        app:"Приложение", add:"Добавить в {app}", copy:"Скопировать ссылку подписки", copied:"Скопировано", servers:"Серверы", download:"Скачать {app}",
        ntill:"до", renew:"Продлить в боте", support:"Поддержка", buy:"Продлить подписку", mo:{1:"1 мес",2:"2 мес",3:"3 мес",6:"6 мес",9:"9 мес",12:"12 мес",24:"24 мес"},
-       m:{stars:"⭐ Звёздами Telegram",card:"💳 Картой",crypto:"💎 Криптовалютой",manual:"🏦 Переводом"}, sent:"Реквизиты отправлены вам в Telegram-бот.", promo:"Промокод", wait:"Создаю счёт…",
-       pay_hint:"Оплата откроется в Telegram. Подписка продлится автоматически.", free:"По вашему промокоду подписка бесплатна — активируйте её в боте.", units:["Б","КБ","МБ","ГБ","ТБ"],
+       m:{stars:"⭐ Звёздами Telegram",card:"💳 Картой",crypto:"💎 Криптовалютой",manual:"🏦 Переводом",yookassa:"💳 Картой или СБП",platega:"⚡ СБП или картой",yoomoney:"💳 Картой через ЮMoney"},
+       devs:"Мои устройства", dev:"Устройство", unlink:"Отвязать", unlink_q:"Отвязать это устройство? Чтобы снова подключить его, обновите подписку в приложении.", nodev:"Устройство привязывается, когда приложение обновляет подписку.", dev_hint:"Отвяжите старое устройство, чтобы подключить новое.",
+       mtp:"Прокси для Telegram", mtp_hint:"Нажмите — Telegram сам добавит прокси. VPN для этого не нужен.", mtp_add:"Добавить в Telegram",
+       ref:"Пригласите друга", ref_hint:"Отправьте ссылку другу. Когда он оплатит подписку, вы получите +{d} дн.", ref_stat:"Приглашено: {i}, оплатили: {p}", ref_copy:"Скопировать ссылку", seen:"был", sent:"Реквизиты отправлены вам в Telegram-бот.", promo:"Промокод", wait:"Создаю счёт…",
+       pay_hint:"Подписка продлится автоматически сразу после оплаты.", free:"По вашему промокоду подписка бесплатна — активируйте её в боте.", units:["Б","КБ","МБ","ГБ","ТБ"],
        st:{active:"Активна", new:"Нет подписки", expired:"Истекла", traffic:"Лимит трафика", suspended:"Превышено число устройств", disabled:"Заблокирован"}},
   en: {sub:"subscription", logout:"Log out", status:"Status", until:"Valid until", left:"Days left", devices:"Devices online", of:"of",
        traffic:"Traffic", unlimited:"unlimited", connect:"Connection", connect_hint:"Tap the button on the device with {app} installed, or scan the QR code in it.",
        app:"App", add:"Add to {app}", copy:"Copy subscription link", copied:"Copied", servers:"Servers", download:"Download {app}",
        ntill:"until", renew:"Renew in the bot", support:"Support", buy:"Renew subscription", mo:{1:"1 mo",2:"2 mo",3:"3 mo",6:"6 mo",9:"9 mo",12:"12 mo",24:"24 mo"},
-       m:{stars:"⭐ Telegram Stars",card:"💳 By card",crypto:"💎 Crypto",manual:"🏦 Bank transfer"}, sent:"The payment details were sent to you in the Telegram bot.", promo:"Promo code", wait:"Creating the invoice…",
-       pay_hint:"Payment opens in Telegram. The subscription renews automatically.", free:"Your promo code makes the subscription free — activate it in the bot.", units:["B","KB","MB","GB","TB"],
+       m:{stars:"⭐ Telegram Stars",card:"💳 By card",crypto:"💎 Crypto",manual:"🏦 Bank transfer",yookassa:"💳 Card or SBP",platega:"⚡ SBP or card",yoomoney:"💳 Card via YooMoney"},
+       devs:"My devices", dev:"Device", unlink:"Unlink", unlink_q:"Unlink this device? To connect it again, refresh the subscription in the app.", nodev:"A device is linked when the app refreshes the subscription.", dev_hint:"Unlink an old device to connect a new one.",
+       mtp:"Telegram proxy", mtp_hint:"Tap — Telegram adds the proxy itself. No VPN needed.", mtp_add:"Add to Telegram",
+       ref:"Invite a friend", ref_hint:"Send the link to a friend. When they pay, you get +{d} days.", ref_stat:"Invited: {i}, paid: {p}", ref_copy:"Copy link", seen:"seen", sent:"The payment details were sent to you in the Telegram bot.", promo:"Promo code", wait:"Creating the invoice…",
+       pay_hint:"The subscription renews automatically right after payment.", free:"Your promo code makes the subscription free — activate it in the bot.", units:["B","KB","MB","GB","TB"],
        st:{active:"Active", new:"No subscription", expired:"Expired", traffic:"Traffic limit reached", suspended:"Too many devices", disabled:"Blocked"}},
 };
 function t(k){ return (I[LANG] || I.ru)[k]; }
@@ -96,7 +102,7 @@ function render(){
     <div class="row"><span>${t("status")}</span><span class="badge b-${D.status}">${esc(t("st")[D.status] || D.status)}</span></div>
     <div class="row"><span>${t("until")}</span><b>${esc(expires)}</b></div>
     ${D.forever ? "" : D.expires_ts ? `<div class="row"><span>${t("left")}</span><b>${D.days_left}</b></div>` : ""}
-    <div class="row"><span>${t("devices")}</span><b>${D.devices}${D.device_limit ? " " + t("of") + " " + D.device_limit : ""}</b></div>
+    ${D.device_mode === "ip" ? `<div class="row"><span>${t("devices")}</span><b>${D.devices}${D.device_limit ? " " + t("of") + " " + D.device_limit : ""}</b></div>` : ""}
   </div>
 
   ${(D.plans||[]).length ? `<div class="card"><h2>${t("buy")}</h2>
@@ -122,6 +128,17 @@ function render(){
     <div class="qr">${D.qr}</div>
     <div class="link">${esc(D.sub_url)}</div>
   </div>
+
+  ${D.device_mode !== "ip" ? `<div class="card"><h2>${t("devs")}${D.device_limit ? ` <span class="muted">${D.device_list.length} ${t("of")} ${D.device_limit}</span>` : ""}</h2>
+    ${D.device_list.length ? D.device_list.map(d=>`<div class="pay" style="padding:8px 0;border-top:1px solid var(--line)"><span>${esc(d.name || t("dev"))}<br><span class="muted">${t("seen")} ${new Date(d.last*1000).toLocaleDateString(LANG==="en"?"en-GB":"ru-RU")}</span></span><button class="btn btn-s" style="width:auto;margin:0;padding:8px 12px" onclick="unlink(${d.id})">${t("unlink")}</button></div>`).join("") + `<div class="muted" style="margin-top:6px">${t("dev_hint")}</div>`
+      : `<div class="muted">${t("nodev")}</div>`}</div>` : ""}
+
+  ${(D.mtproxy||[]).length ? `<div class="card"><h2>${t("mtp")}</h2><div class="muted">${t("mtp_hint")}</div>
+    ${D.mtproxy.map(m=>`<a class="btn btn-s" href="${esc(m.url)}" target="_blank" rel="noopener">${m.cc ? `<i class="fl" style="background-image:url('/assets/flags/${m.cc}.svg');vertical-align:-2px;margin-right:6px"></i>` : ""}${esc(m.name)} — ${t("mtp_add")}</a>`).join("")}</div>` : ""}
+
+  ${D.ref ? `<div class="card"><h2>${t("ref")}</h2><div class="muted">${t("ref_hint").replace("{d}", D.ref.days_bonus)}</div>
+    <div class="link">${esc(D.ref.link)}</div><button class="btn btn-s" onclick="copy(D.ref.link)">${t("ref_copy")}</button>
+    <div class="muted" style="margin-top:8px">${t("ref_stat").replace("{i}", D.ref.invited).replace("{p}", D.ref.paid)}</div></div>` : ""}
 
   ${D.servers.length ? `<div class="card"><h2>${t("servers")}</h2><div class="servers">${D.servers.map(s=>`<span>${s.cc ? `<i class="fl" style="background-image:url('/assets/flags/${s.cc}.svg')"></i>` : ""}${esc(s.name)}</span>`).join("")}</div></div>` : ""}
 
@@ -153,10 +170,16 @@ async function buy(method, months, btn){
   } catch(e) { err.textContent = e.message; }
   btn.disabled = false; btn.innerHTML = old;
 }
-function copy(){
+function copy(text){
+  text = typeof text === "string" ? text : D.sub_url;
   const done = () => { const el = document.getElementById("toast"); el.classList.add("show"); setTimeout(()=>el.classList.remove("show"), 1500); };
-  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(D.sub_url).then(done);
-  else { const a = document.createElement("textarea"); a.value = D.sub_url; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); done(); }
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done);
+  else { const a = document.createElement("textarea"); a.value = text; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); done(); }
+}
+async function unlink(id){
+  if (!confirm(t("unlink_q"))) return;
+  const r = await fetch(location.pathname + "/device/" + id, {method: "DELETE"});
+  if (r.ok) { D.device_list = D.device_list.filter(d => d.id !== id); render(); }
 }
 render();
 </script>

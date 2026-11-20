@@ -43,11 +43,16 @@ Protocols: VLESS and Trojan with Reality disguise, Shadowsocks-2022 and Hysteria
 - **Auto server selection.** "⚡ Auto" in Happ and INCY connects to the fastest working server and switches when one stops responding.
 - **Cascade and own site.** Forward traffic through a server in Russia; disguise Reality as your own domain with an automatic Let's Encrypt certificate.
 - **SOCKS5 for the administrator.** A `socks5://` link, an app import link and a Telegram proxy link for any server. Never given to users.
+- **MTProto proxy for users.** A Telegram proxy with Fake TLS on any server; every active user gets a personal secret in the bot and on their page.
+- **Server monitoring.** Telegram alerts when a server is down or back, Xray stops, disk or memory is full.
+- **Hoster traffic limits.** Monthly or daily volume per server; a server that used up its limit leaves subscriptions until the new period. Offline servers can be hidden automatically.
 
 ### Users and payments
 - **Users.** Fixed-term or lifetime subscriptions, traffic and device limits, torrent blocking, traffic reset, link reissue, Telegram messages, payment history.
+- **Devices by HWID.** Device limits by IP, by app (HWID from Happ and INCY) or both; users unlink old devices themselves.
 - **Plans.** Terms from 1 to 24 months, prices in Telegram Stars and in ₽, $, €, ₸, ₴, Br.
-- **Payment methods.** Telegram Stars, bank card (Telegram payment provider), CryptoBot, bank transfer with unique payment codes confirmed by the administrator.
+- **Payment methods.** Telegram Stars, bank card (Telegram payment provider), YooKassa, Platega and YooMoney (cards and SBP with automatic confirmation), CryptoBot, bank transfer with unique payment codes confirmed by the administrator.
+- **Growth.** Free trial, referral links with bonus days, traffic source tags, win-back discounts and a churn survey.
 - **Promo codes.** 1–100 % discount, plans, validity, usage limits, single- or multi-use, new users only.
 - **Notices.** Maintenance and news with dates and an audience; shown on the personal page, in the bot and in the apps.
 - **Statistics.** Revenue, payments and users for any period, charts, CSV export.
@@ -58,7 +63,7 @@ Protocols: VLESS and Trojan with Reality disguise, Shadowsocks-2022 and Hysteria
 - **Website.** Phone sign-in with a code from the bot, a personal page with a QR code, renewal and "Add to Happ / INCY" buttons.
 
 ### Happ and INCY
-- Subscription name, announcement with emoji, captions under servers, support and website buttons, auto-update interval, ping method, sorting, auto-connect, pinning, expiry warning, Happ Provider ID.
+- Subscription name, announcement with emoji, captions under servers, variables in server names (`{days}`, `{left}`…), support and website buttons, auto-update interval, ping method, sorting, auto-connect, pinning, expiry warning, Happ Provider ID.
 
 ### Administration
 - **Updates.** Versions of all panels on one page, one-click update with a progress bar, rollback. Packages are signed with Ed25519.
@@ -93,6 +98,7 @@ The most reliable setup is several different connections in one subscription plu
 | **XHTTP / gRPC** | Detection by traffic behaviour | Transport in the VPN settings |
 | **Hysteria2 + Salamander** | TCP throttling, poor mobile networks | Hysteria2 protocol, "Salamander obfuscation" checkbox |
 | **Stub site** | Probing the panel's domain | Settings → "Server camouflage": the home page shows an ordinary website, user sign-in moves to a secret address, unknown addresses answer like plain nginx |
+| **Scanner detection** | Probing the panel's domain | IPs requesting many non-existent paths are logged and can be blocked for 7 days |
 | **Hidden node API** | Scanning servers for the panel | The management port is open only to the master panel's IP (on by default) |
 
 **Recommended setups:**
@@ -261,6 +267,10 @@ hidevp-panel/
 │   ├── app/botui.py       bot buttons and texts
 │   ├── app/payments.py    payment methods
 │   ├── app/promo.py       promo codes
+│   ├── app/growth.py      trial, referrals, sources, win-back
+│   ├── app/devices.py     device limits by HWID
+│   ├── app/monitor.py     server monitoring and traffic limits
+│   ├── app/scan.py        scanner detection
 │   ├── app/notices.py     notices
 │   ├── app/stats.py       statistics and CSV export
 │   ├── app/backup.py      backups
@@ -276,10 +286,11 @@ hidevp-panel/
 │   └── static/            admin panel, personal page, login page, documentation, flags
 └── node/
     ├── agent.py           node API: Xray config, statistics, online users
-    └── nodectl.py         the hidevp-node command
+    ├── nodectl.py         the hidevp-node command
+    └── mtproto/           MTProto proxy (mtprotoproxy, MIT)
 ```
 
-Dependencies: Python 3.10+, Starlette, Uvicorn, cryptography; Xray-core (XTLS) on nodes. Country flags — [flag-icons](https://github.com/lipis/flag-icons) (MIT, license in `master/static/flags/LICENSE.txt`).
+Dependencies: Python 3.10+, Starlette, Uvicorn, cryptography; Xray-core (XTLS) on nodes. Country flags — [flag-icons](https://github.com/lipis/flag-icons) (MIT, license in `master/static/flags/LICENSE.txt`). MTProto proxy — [mtprotoproxy](https://github.com/alexbers/mtprotoproxy) (MIT, license in `node/mtproto/LICENSE`).
 
 ## Troubleshooting
 

@@ -165,6 +165,7 @@ def sub_url(u) -> str:
 
 def regen_user(uid: int):
     ex("UPDATE users SET uuid=?, token=? WHERE id=?", (str(uuidlib.uuid4()), secrets.token_urlsafe(18), uid))
+    ex("DELETE FROM devices WHERE user_id=?", (uid,))
 
 
 def happ_link(u) -> str:
@@ -199,10 +200,39 @@ def _reality_params(vpn: dict) -> dict:
     return p
 
 
+NAME_VARS = ("server", "user", "days", "left", "used", "total", "expire")
+
+
+def render_name(name: str, u: dict, server: str = "") -> str:
+    if "{" not in name:
+        return name
+    en = user_lang(u) == "en"
+    used = (u.get("used_up") or 0) + (u.get("used_down") or 0)
+    limit = u.get("traffic_limit") or 0
+    if u.get("forever"):
+        days, expire = "∞", ("lifetime" if en else "бессрочно")
+    elif u.get("expires_at"):
+        days = str(max(0, int((u["expires_at"] - time.time()) // DAY)))
+        expire = time.strftime("%d.%m.%Y", time.localtime(u["expires_at"]))
+    else:
+        days, expire = "0", "—"
+    vals = {"server": server, "user": u.get("name") or (("@" + u["tg_username"]) if u.get("tg_username") else f"#{u.get('id', '')}"),
+            "days": days, "expire": expire, "used": fmt_bytes(used, en),
+            "total": fmt_bytes(limit, en) if limit else "∞",
+            "left": fmt_bytes(max(0, limit - used), en) if limit else "∞"}
+    for k in NAME_VARS:
+        name = name.replace("{" + k + "}", vals[k])
+    return name
+
+
+def vpn_title(u: dict, vpn: dict, cc: str, server: str = "") -> str:
+    return f"{flag(cc)} {render_name(vpn['name'], u, server)}"
+
+
 def vpn_link(u: dict, vpn: dict, node: dict) -> str:
     proto = vpn.get("protocol") or "vless"
     host, port = _host(node), vpn["port"]
-    title = quote(f"{flag(node['country_code'])} {vpn['name']}")
+    title = quote(vpn_title(u, vpn, node["country_code"], node.get("name") or ""))
     if vpn.get("descr"):
         title += "?serverDescription=" + base64.b64encode(vpn["descr"].encode()).decode()
     if proto == "trojan":
@@ -222,17 +252,58 @@ def vpn_link(u: dict, vpn: dict, node: dict) -> str:
     return f"vless://{u['uuid']}@{host}:{port}?{urlencode(p, quote_via=quote)}#{title}"
 
 
-def _vpn_rows():
-    return q("""SELECT v.*, n.host AS n_host, IFNULL(un.country_code, n.country_code) AS n_cc FROM vpns v
+def hidden_nodes(rows: list[dict] | None = None) -> set:
+    nodes = q("SELECT id, status, last_seen, tl_over FROM nodes")
+    t = time.time()
+    off = get_setting("sub_hide_offline", "0") == "1"
+    bad = {n["id"] for n in nodes if n.get("tl_over")
+           or (off and n["status"] in ("offline", "error") and t - (n["last_seen"] or 0) > 180)}
+    if not bad:
+        return set()
+    if rows is None:
+        rows = _vpn_rows(hide=False)
+    used = {r["node_id"] for r in rows} | {r["u_node"] for r in rows if r.get("u_node")}
+    left = [r for r in rows if r["node_id"] not in bad and r.get("u_node") not in bad]
+    return bad if left or not used else set()
+
+
+def _vpn_rows(hide: bool = True):
+    rows = q("""SELECT v.*, n.host AS n_host, n.name AS n_name, IFNULL(un.country_code, n.country_code) AS n_cc,
+                uv.node_id AS u_node FROM vpns v
                 JOIN nodes n ON n.id=v.node_id
                 LEFT JOIN vpns uv ON uv.id=v.upstream_id AND v.upstream_id>0
                 LEFT JOIN nodes un ON un.id=uv.node_id
                 WHERE v.enabled=1 AND (IFNULL(v.upstream_id, 0)=0 OR (uv.enabled=1 AND v.bridge_uuid!=''))
                 ORDER BY v.sort, v.id""")
+    if not hide:
+        return rows
+    bad = hidden_nodes(rows)
+    return [r for r in rows if r["node_id"] not in bad and r.get("u_node") not in bad] if bad else rows
 
 
 def user_links(u: dict) -> list[str]:
-    return [vpn_link(u, r, {"host": r["n_host"], "country_code": r["n_cc"]}) for r in _vpn_rows()]
+    return [vpn_link(u, r, {"host": r["n_host"], "country_code": r["n_cc"], "name": r["n_name"]}) for r in _vpn_rows()]
+
+
+def mt_secret(node: dict, u: dict) -> str:
+    return hmac.new(node["mt_key"].encode(), u["uuid"].encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def mt_nodes() -> list[dict]:
+    return q("SELECT * FROM nodes WHERE mt_port>0 AND mt_key!='' ORDER BY id")
+
+
+def mt_links(u: dict) -> list[dict]:
+    if user_status(u) != "active":
+        return []
+    out = []
+    for n in mt_nodes():
+        raw = (n["host"] or "").strip("[]")
+        secret = "ee" + mt_secret(n, u) + (n["mt_domain"] or "").encode().hex()
+        qs = f"server={quote(raw, safe='')}&port={int(n['mt_port'])}&secret={secret}"
+        out.append({"node_id": n["id"], "name": n["name"], "cc": n["country_code"], "flag": flag(n["country_code"]),
+                    "url": "https://t.me/proxy?" + qs, "tg": "tg://proxy?" + qs})
+    return out
 
 
 def socks_links(node: dict) -> dict:
@@ -352,17 +423,18 @@ def user_json(u: dict, lang: str = "ru") -> list[dict]:
         out.append(_client_config("⚡ Auto" if lang == "en" else "⚡ Автовыбор", proxies, True,
                                   "Fastest available server" if lang == "en" else "Самый быстрый доступный сервер"))
     for r in rows:
-        name = f"{flag(r['n_cc'])} {r['name']}"
+        name = vpn_title(u, r, r["n_cc"], r.get("n_name") or "")
         out.append(_client_config(name, [client_outbound(u, r, _host({"host": r["n_host"]}).strip("[]"), "proxy")],
                                   False, r.get("descr") or ""))
     return out
 
 
-def fmt_bytes(n: int) -> str:
+def fmt_bytes(n: int, en: bool = False) -> str:
     n = float(n or 0)
-    for unit in ("Б", "КБ", "МБ", "ГБ", "ТБ"):
-        if n < 1024 or unit == "ТБ":
-            return f"{n:.0f} {unit}" if unit in ("Б", "КБ") else f"{n:.2f} {unit}"
+    units = ("B", "KB", "MB", "GB", "TB") if en else ("Б", "КБ", "МБ", "ГБ", "ТБ")
+    for i, unit in enumerate(units):
+        if n < 1024 or i == 4:
+            return f"{n:.0f} {unit}" if i < 2 else f"{n:.2f} {unit}"
         n /= 1024
 
 

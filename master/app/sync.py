@@ -3,7 +3,7 @@ import json
 import logging
 import time
 
-from . import core, nodes
+from . import core, monitor, nodes
 from .bot import manager as bot
 from .db import ex, get_setting, q, q1
 from .events import sync_event
@@ -85,7 +85,12 @@ def desired_state(node, users) -> dict:
     vpns = out
     socks = ({"port": int(node["socks_port"]), "user": node["socks_user"], "pass": node["socks_pass"]}
              if node.get("socks_port") and node.get("socks_pass") and _agent_ok(node, "1.2.3") else None)
+    mtproto = None
+    if node.get("mt_port") and node.get("mt_key") and _agent_ok(node, "1.7.0"):
+        mtproto = {"port": int(node["mt_port"]), "domain": node.get("mt_domain") or "",
+                   "users": {f"u{u['id']}": core.mt_secret(node, u) for u in users}}
     return {
+        "mtproto": mtproto,
         "api_lock": get_setting("hide_node_api", "1") == "1",
         "panel_ips": sorted(_panel_ips()),
         "socks": socks,
@@ -120,6 +125,10 @@ async def sync_all():
 
     results = await asyncio.gather(*(poll_stats(n) for n in all_nodes))
     traffic, online = {}, {}
+    try:
+        await monitor.observe(results)
+    except Exception:
+        log.exception("monitor")
     for _node, res in results:
         if not res:
             continue
@@ -148,7 +157,8 @@ async def sync_all():
             ex("UPDATE users SET online_ips=?, online_at=? WHERE id=?", (json.dumps(ips), now, u["id"]))
         elif u["online_ips"] != "[]":
             ex("UPDATE users SET online_ips='[]' WHERE id=?", (u["id"],))
-        over = bool(u["device_limit"] and len(ips) > u["device_limit"] and core.user_status(u, now) == "active")
+        over = bool(u["device_limit"] and len(ips) > u["device_limit"] and core.user_status(u, now) == "active"
+                    and get_setting("device_mode", "ip") != "hwid")
         if not over:
             OVER_SINCE.pop(u["id"], None)
         elif now - OVER_SINCE.setdefault(u["id"], now) >= OVER_GRACE:

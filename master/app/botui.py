@@ -14,17 +14,25 @@ BUILTIN = {
     "phone":   ("☎️ Привязать номер для входа на сайт", "☎️ Link phone for website login"),
     "support": ("💬 Поддержка", "💬 Support"),
     "lang":    ("🌐 English", "🌐 Русский"),
+    "ref":     ("👥 Пригласить друга", "👥 Invite a friend"),
+    "devices": ("📱 Мои устройства", "📱 My devices"),
+    "mtproxy": ("📨 Прокси для Telegram", "📨 Telegram proxy"),
 }
+AUTO_ON = ("ref", "devices", "mtproxy")
 BUILTIN_HINT = {
     "buy": "тарифы и оплата", "page": "ссылка на личную страницу (если задан публичный адрес)",
     "me": "статус, трафик, ссылка подписки", "regen": "новые ссылки подписки и личной страницы, старые перестают работать", "promo": "ввод промокода", "help": "текст «Как подключиться»",
     "phone": "видна, пока номер не привязан", "support": "ссылка на контакт поддержки из настроек",
     "lang": "переключение RU/EN",
+    "ref": "реферальная ссылка; видна, когда включены рефералы",
+    "devices": "список устройств и отвязка; видна при лимите по HWID",
+    "mtproxy": "MTProto-прокси; видна, когда прокси включён хотя бы на одном сервере",
 }
 
 DEFAULT_BUTTONS = [
     {"id": "buy"}, {"id": "page"}, {"id": "me"},
     {"id": "promo"}, {"id": "help", "same_row": True},
+    {"id": "ref"}, {"id": "mtproxy", "same_row": True}, {"id": "devices"},
     {"id": "phone"}, {"id": "support", "on": False}, {"id": "regen", "on": False}, {"id": "lang"},
 ]
 
@@ -83,7 +91,7 @@ def load() -> dict:
     have = {b.get("id") for b in cfg["buttons"]}
     for bid in BUILTIN:
         if bid not in have:
-            cfg["buttons"].append({"id": bid, "on": False})
+            cfg["buttons"].append({"id": bid, "on": bid in AUTO_ON})
     return cfg
 
 

@@ -107,7 +107,8 @@ journalctl -u xray -f           # Xray log</pre>
 <p>Checkboxes at the top of the VPN page. <b>Auto selection</b> adds "⚡ Auto" in Happ and INCY: the app tests connections (except Hysteria2) and uses the fastest working one. <b>TLS fragmentation</b> splits the first packet with the site name. For Happ and INCY the subscription is then served as Xray JSON — the app's own routing rules don't apply.</p>
 <h3>Server camouflage</h3>
 <p>Settings → "Server camouflage":</p>
-<ul><li><b>Stub site</b> — the domain's home page shows an ordinary website (personal page, under construction, studio or custom HTML). Users sign in at a secret cabinet address that the bot sends automatically. Unknown addresses answer like plain nginx.</li>
+<ul><li><b>Stub site</b> — the domain's home page shows an ordinary website (personal page, under construction, studio, file storage, speed test, blog, maintenance or custom HTML). Users sign in at a secret cabinet address that the bot sends automatically. Unknown addresses answer like plain nginx.</li>
+<li><b>Scanners</b> — the panel notices IPs that request 8 or more non-existent addresses within 10 minutes. They can be blocked for 7 days (404 on the home page, in the cabinet and at sign-in) and summarized daily in Telegram. The admin panel, subscriptions and personal pages still work for blocked IPs; the administrator's IP is never blocked.</li>
 <li><b>Hide the work panels' API</b> — the management port on servers is open only to the master panel's IP.</li></ul>
 <p>Ready-made setups for different situations are in "Recommended setups".</p>
 </section>
@@ -149,11 +150,37 @@ journalctl -u xray -f           # Xray log</pre>
 <li><b>Telegram Stars</b> — work right away, no setup.</li>
 <li><b>Card (Telegram provider)</b> — connect a payment provider in @BotFather → Payments and paste the "Provider token".</li>
 <li><b>CryptoBot</b> — in @CryptoBot: Crypto Pay → Create app → copy the token. Payments are checked every 20 seconds.</li>
+<li><b>YooKassa</b> — cards, SBP and SberPay on the YooKassa page. Requires a YooKassa contract; the shopId and secret key are in your account: Integration → API keys. Receipts under 54-FZ can be sent to the user's linked phone or to the e-mail from the settings. Payment is checked every 20 seconds.</li>
+<li><b>Platega</b> — SBP and cards. The Merchant ID and secret key are in your Platega account. You can preset the method or let the buyer choose.</li>
+<li><b>YooMoney</b> — a transfer to your wallet, no business registration or contract. Enter the wallet number, then on yoomoney.ru/transfer/myservices/http-notification paste the notification URL from the admin panel and copy the secret to the panel. The subscription renews as soon as the transfer notification arrives. The panel needs a public address.</li>
+<li>YooKassa, Platega and YooMoney accept rubles only — choose RUB.</li>
 <li><b>Transfers</b> — enter card or SBP details. The user gets a unique code for the payment comment and taps "I have paid"; you check the incoming payment and confirm in the bot or the admin panel.</li>
 <li><b>Paying on the site</b> — the user page offers the same plans and methods.</li></ul>
 <p>The price, currency and promo code are checked before payment; a repeated payment is not counted twice. Each payment extends the subscription by the chosen period and lifts a suspension.</p>
 <h3>Promo codes</h3>
 <p>Discount 1–100 %, plans, validity, usage limit, single or multiple use, new users only. A 100 % code activates the subscription without payment.</p>
+</section>
+
+<section id="growth"><h2>Growth: trial, referrals, win-back</h2>
+<p>The “Growth” section in the menu.</p>
+<ul><li><b>Trial period</b> — new bot users get N free days. Once per Telegram account and only for those who have never paid. With “after the phone number” the trial is granted when the user shares a phone number, and once per number.</li>
+<li><b>Referrals</b> — every user has a link like <code>t.me/bot?start=r_ID</code> in the bot (“Invite a friend”) and on their page. When the invited friend pays for the first time, the inviter gets the set number of days and the friend gets their own bonus if set.</li>
+<li><b>Sources</b> — a link <code>t.me/bot?start=s_tag</code> marks where a new user came from. The table shows sign-ups, paying users and revenue per tag. You can build a tagged link right on the page.</li>
+<li><b>Win-back</b> — N days after a subscription ends the bot sends a personal single-use discount code; it is already applied, so the user just taps “Renew with discount”. Only for users who paid before.</li>
+<li><b>Reason for leaving</b> — the day after a subscription ends the bot asks why the user didn't renew, with ready-made answers. Answers are shown in “Growth” and in the user card.</li></ul>
+</section>
+
+<section id="mtproto"><h2>Telegram proxy (MTProto)</h2>
+<p>An MTProto proxy can be enabled on any server: Servers → the “MTProto” button on the server card. Set a port and a camouflage site — the proxy looks like an HTTPS site (Fake TLS), and foreign connections are passed to that site. For a server in Russia use a Russian site.</p>
+<p>All users with an active subscription get the proxy: the “Telegram proxy” button in the bot and on the personal page. Telegram adds the proxy by itself, no VPN app is needed. Each user has their own secret; when the subscription ends, their proxy stops working. “New secrets” changes the secrets for everyone. Requires work panel 1.7.0.</p>
+</section>
+
+<section id="monitor"><h2>Monitoring and server limits</h2>
+<p>Settings → “Monitoring”. Administrators get Telegram messages when a server has been unreachable longer than the set time and when it is back, when Xray stops, and when disk or memory use exceeds the threshold. Xray, disk and memory are checked on work panel 1.7.0.</p>
+<h3>Hoster traffic limit</h3>
+<p>Servers → “Edit”: volume in GB, period (month or day), the month start day and what to count — all traffic or outgoing only, as your hoster counts. The panel counts the server's network interface traffic. When the limit is used up, the server is removed from subscriptions until the new period, and administrators get a message. If there are no other servers, it stays in subscriptions. The counter can be reset manually.</p>
+<h3>Hiding offline servers</h3>
+<p>Settings → “Subscriptions and devices” → “Hide offline servers from the subscription”. A server disappears from the subscription if it doesn't respond for more than 3 minutes and comes back by itself. All servers are never hidden at once.</p>
 </section>
 
 <section id="notices"><h2>Notices and statistics</h2>
@@ -195,6 +222,10 @@ journalctl -u xray -f           # Xray log</pre>
 <tr><td>Ping, sorting, auto-connect</td><td>Ping method, server order, connecting on launch to the last, fastest or a random server.</td></tr>
 <tr><td>Pin, keep expanded</td><td>Subscription at the top of the list, server list always expanded.</td></tr>
 <tr><td>INCY only</td><td>Announcement link and e-mail, profile description, hiding the subscription link from copy and QR.</td></tr></table>
+<h3>Variables in names</h3>
+<p>A VPN name can contain <code>{server}</code>, <code>{user}</code>, <code>{days}</code>, <code>{left}</code>, <code>{used}</code>, <code>{total}</code>, <code>{expire}</code> — the panel fills in values for each user, e.g. “Netherlands · {days} days left”. Values update with the subscription.</p>
+<h3>Devices by HWID</h3>
+<p>Settings → “Subscriptions and devices”. Devices can be counted by IP (how many addresses are connected at once), by HWID (how many apps receive the subscription) or both. Happ and INCY send a HWID; when the device limit is reached, a new app gets an empty server list and a message. Users unlink old devices themselves on their page or in the bot (“My devices”), administrators in the user card. A device that hasn't refreshed the subscription for a long time is freed automatically. Reissuing links unlinks all devices.</p>
 <h3>Captions under servers</h3>
 <p>The VPN field "Caption under the name in the app" (up to 30 characters) replaces the protocol line, e.g. "For YouTube and social media". Empty — the app shows the protocol.</p>
 <h3>Provider ID for Happ</h3>

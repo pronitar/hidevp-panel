@@ -7,7 +7,7 @@ import logging
 import re
 import time
 
-from . import botui, core, payments, promo, tg
+from . import botui, core, devices, growth, payments, promo, tg
 from .db import ex, ex_count, get_setting, q1, set_setting
 from .events import request_sync
 from .tg import TelegramError
@@ -229,14 +229,19 @@ class BotManager:
             return await self.link_admin(chat, user, start_arg[6:])
         if text.startswith("/admin "):
             return await self.link_admin(chat, user, text[7:].strip())
+        kind, value = growth.parse_start(start_arg)
         if user.get("_new"):
+            if kind:
+                growth.attach(user, kind, value)
             await self.send_welcome(chat, user)
-            if start_arg and start_arg != "site":
+            if start_arg and start_arg != "site" and not kind:
                 await self.apply_promo(chat, user, start_arg)
             return
         if text.startswith("/"):
             self.awaiting_promo.discard(user["id"])
-        if start_arg and start_arg != "site":
+        if kind:
+            await self.send_menu(chat, user)
+        elif start_arg and start_arg != "site":
             await self.apply_promo(chat, user, start_arg)
         elif text.startswith("/promo"):
             code = text[6:].strip()
@@ -296,6 +301,12 @@ class BotManager:
                 return {"text": text, "url": url} if url else None
             if bid == "lang":
                 return {"text": text, "callback_data": "lang:" + ("ru" if lang == "en" else "en")}
+            if bid == "ref":
+                return {"text": text, "callback_data": "ref"} if u and self.username and get_setting("ref_on", "0") == "1" else None
+            if bid == "devices":
+                return {"text": text, "callback_data": "dev"} if u and devices.hwid_on() else None
+            if bid == "mtproxy":
+                return {"text": text, "callback_data": "mtp"} if u and core.user_status(u) == "active" and core.mt_nodes() else None
             if bid in botui.BUILTIN:
                 return {"text": text, "callback_data": bid}
             if b.get("type") == "url":
@@ -369,7 +380,22 @@ class BotManager:
         await self.send(chat, text, self.menu_kb(u))
 
     async def send_welcome(self, chat, u):
+        days = 0 if growth.trial_needs_phone() else growth.grant_trial(u)
+        if days:
+            request_sync()
+            u = self.reload(u)
         await self.send(chat, self.text("welcome", u), self.menu_kb(u))
+        if days:
+            await self.send(chat, T(u, f"🎁 Вам начислен бесплатный пробный период — {days} дн. Подписка уже работает.",
+                                    f"🎁 You got a free trial — {days} days. The subscription is already active."))
+        elif growth.trial_days() and growth.trial_needs_phone():
+            self.track(chat, await self.bot.call(
+                "sendMessage", chat_id=chat, parse_mode="HTML",
+                text=T(u, f"🎁 Поделитесь номером телефона — и получите {growth.trial_days()} дн. бесплатно.",
+                       f"🎁 Share your phone number to get {growth.trial_days()} days free."),
+                reply_markup={"keyboard": [[{"text": T(u, "📱 Поделиться номером", "📱 Share phone number"),
+                                             "request_contact": True}]], "resize_keyboard": True, "one_time_keyboard": True}))
+            return
         if botui.load().get("ask_phone", True):
             await self.ask_phone(chat, u)
 
@@ -401,6 +427,12 @@ class BotManager:
         self.track(chat, await self.bot.call("sendMessage", chat_id=chat, parse_mode="HTML", reply_markup={"remove_keyboard": True},
                             text=T(u, f"✅ Номер {core.fmt_phone(phone)} привязан. Теперь можно входить на сайт по нему.",
                                    f"✅ Number {core.fmt_phone(phone)} linked. You can now sign in on the website with it.")))
+        if growth.trial_needs_phone():
+            days = growth.grant_trial(self.reload(u), phone)
+            if days:
+                request_sync()
+                await self.send(chat, T(u, f"🎁 Вам начислен бесплатный пробный период — {days} дн. Подписка уже работает.",
+                                        f"🎁 You got a free trial — {days} days. The subscription is already active."))
         await self.send_menu(chat, u)
 
     async def send_login_code(self, chat_id, code: str, lang: str = "ru") -> bool:
@@ -555,6 +587,16 @@ class BotManager:
         try:
             if method == "manual":
                 return await self.send_manual(chat, u, payments.create_manual(u, months, amount, base, p))
+            if method in payments.EXT:
+                order = await asyncio.to_thread(payments.create_ext, method, u, months, amount, base, p,
+                                                f"{get_setting('panel_title', 'VPN')}: {mword(u, months)}", chat,
+                                                self.return_url(u))
+                return await self.send(chat, T(u, f"💳 Счёт на <b>{payments.fmt(amount, 'RUB')}</b> ({mword(u, months)}) создан.\n"
+                                                  "Оплатите по кнопке ниже — подписка продлится автоматически.",
+                                                  f"💳 Invoice for <b>{payments.fmt(amount, 'RUB')}</b> ({mword(u, months)}) created.\n"
+                                                  "Pay with the button below — the subscription renews automatically."),
+                                       {"inline_keyboard": [[{"text": T(u, "💳 Оплатить", "💳 Pay"), "url": order["url"]}],
+                                                            [{"text": T(u, "« Меню", "« Menu"), "callback_data": "menu"}]]})
             if method == "crypto":
                 inv = await asyncio.to_thread(payments.create_crypto_invoice, u, months, amount, base, p,
                                               f"{get_setting('panel_title', 'VPN')}: {mword(u, months)}", self.username, chat)
@@ -638,9 +680,14 @@ class BotManager:
                               + (T(u, " Напишите в поддержку: ", " Contact support: ") + html.escape(sup) if sup else ""))
         return status
 
+    def return_url(self, u) -> str:
+        if core.public_url():
+            return core.user_page_url(u)
+        return f"https://t.me/{self.username}" if self.username else "https://t.me"
+
     async def invoice_link(self, u, months: int, method: str) -> str:
         u = self.reload(u)
-        if not self.bot:
+        if not self.bot and method not in payments.EXT:
             raise payments.PayError("Бот не запущен")
         base, amount, p = self._offer(u, months, method)
         if not base:
@@ -651,6 +698,11 @@ class BotManager:
             inv = await asyncio.to_thread(payments.create_crypto_invoice, u, months, amount, base, p,
                                           f"{get_setting('panel_title', 'VPN')}: {mword(u, months)}", self.username, u.get("tg_id"))
             return inv["url"]
+        if method in payments.EXT:
+            order = await asyncio.to_thread(payments.create_ext, method, u, months, amount, base, p,
+                                            f"{get_setting('panel_title', 'VPN')}: {mword(u, months)}", u.get("tg_id"),
+                                            self.return_url(u))
+            return order["url"]
         if method == "manual":
             if not u.get("tg_id"):
                 raise payments.PayError("Бот не запущен")
@@ -761,6 +813,61 @@ class BotManager:
             _, method, m = data.split(":")
             if method in payments.enabled():
                 await self.pay(chat, u, int(m), method)
+        elif data == "ref":
+            await self.send_ref(chat, u)
+        elif data == "dev":
+            await self.send_devices(chat, u)
+        elif data.startswith("devdel:"):
+            devices.remove(u["id"], int(data[7:]))
+            await self.send_devices(chat, u, T(u, "✅ Устройство отвязано.\n\n", "✅ Device unlinked.\n\n"))
+        elif data == "mtp":
+            await self.send_mtproxy(chat, u)
+        elif data.startswith("churn:"):
+            if growth.save_churn(u, data[6:]):
+                await self.send(chat, T(u, "Спасибо за ответ! Будем рады видеть вас снова.",
+                                        "Thanks for your answer! We'd be glad to see you again."), self.menu_kb(u))
+
+    async def send_ref(self, chat, u):
+        link = growth.ref_link(self.username, u)
+        st = growth.ref_stats(u["id"])
+        days = growth._int("ref_days", 7)
+        extra = growth._int("ref_new_days", 0)
+        text = T(u, f"👥 <b>Пригласите друга</b>\n\nОтправьте ему ссылку. Когда друг оплатит подписку, вы получите <b>+{days} дн.</b>"
+                    + (f", а он — <b>+{extra} дн.</b>" if extra else "") + f"\n\n{html.escape(link)}\n\n"
+                    f"Приглашено: {st['invited']}, оплатили: {st['paid']}, начислено: {st['days']} дн.",
+                 f"👥 <b>Invite a friend</b>\n\nSend them the link. When your friend pays, you get <b>+{days} days</b>"
+                    + (f" and they get <b>+{extra} days</b>" if extra else "") + f".\n\n{html.escape(link)}\n\n"
+                    f"Invited: {st['invited']}, paid: {st['paid']}, earned: {st['days']} days.")
+        share = "https://t.me/share/url?url=" + __import__("urllib.parse").parse.quote(link, safe="")
+        await self.send(chat, text, {"inline_keyboard": [[{"text": T(u, "📤 Поделиться", "📤 Share"), "url": share}],
+                                                         [{"text": T(u, "« Меню", "« Menu"), "callback_data": "menu"}]]})
+
+    async def send_devices(self, chat, u, note: str = ""):
+        lst = devices.list_for(u["id"])
+        lim = devices.limit_for(u)
+        head = T(u, f"📱 <b>Мои устройства</b>: {len(lst)}" + (f" из {lim}" if lim else ""),
+                 f"📱 <b>My devices</b>: {len(lst)}" + (f" of {lim}" if lim else ""))
+        rows, lines = [], []
+        for i, d in enumerate(lst, 1):
+            name = " ".join(x for x in (d["model"], d["os"]) if x).strip() or T(u, "Устройство", "Device")
+            lines.append(f"{i}. {html.escape(name)} — {core.fmt_date(d['last_seen'])}")
+            rows.append([{"text": T(u, f"✖ Отвязать №{i}", f"✖ Unlink #{i}"), "callback_data": f"devdel:{d['id']}"}])
+        body = "\n".join(lines) if lines else T(u, "Пока нет привязанных устройств. Устройство привязывается при обновлении подписки в Happ.",
+                                                 "No linked devices yet. A device is linked when it updates the subscription in Happ.")
+        hint = T(u, "\n\nОтвяжите старое устройство, чтобы подключить новое.", "\n\nUnlink an old device to connect a new one.") if lst else ""
+        rows.append([{"text": T(u, "« Меню", "« Menu"), "callback_data": "menu"}])
+        await self.send(chat, note + head + "\n\n" + body + hint, {"inline_keyboard": rows})
+
+    async def send_mtproxy(self, chat, u):
+        links = core.mt_links(self.reload(u))
+        if not links:
+            return await self.send(chat, T(u, "Прокси доступен при активной подписке.", "The proxy is available with an active subscription."),
+                                   self.menu_kb(u))
+        text = T(u, "📨 <b>Прокси для Telegram</b>\n\nНажмите кнопку — Telegram сам добавит прокси. VPN для этого не нужен.",
+                 "📨 <b>Telegram proxy</b>\n\nTap a button — Telegram adds the proxy itself. No VPN needed.")
+        rows = [[{"text": f"{x['flag']} {x['name']}", "url": x["url"]}] for x in links]
+        rows.append([{"text": T(u, "« Меню", "« Menu"), "callback_data": "menu"}])
+        await self.send(chat, text, {"inline_keyboard": rows})
 
     @staticmethod
     def parse_payload(payload: str):
@@ -816,6 +923,16 @@ class BotManager:
             promo.record_use(p, uid, pay_id, months, total, base, cur)
         await self.activated(chat, uid, months, total, p, cur)
 
+    async def on_ext_paid(self, row: dict):
+        charge = f"{row['provider']}:{row['ext_id'] or row['id']}"
+        if q1("SELECT id FROM payments WHERE tg_charge_id=?", (charge,)):
+            return
+        u = q1("SELECT * FROM users WHERE id=?", (row["user_id"],))
+        if not u:
+            return
+        await self.record_payment(row["chat_id"] or u.get("tg_id"), u["id"], row["months"], row["amount"],
+                                  row["promo_id"], row["provider"], row["currency"], charge)
+
     async def on_crypto_paid(self, row: dict, inv: dict):
         charge = f"crypto:{row['invoice_id']}"
         if q1("SELECT id FROM payments WHERE tg_charge_id=?", (charge,)):
@@ -829,6 +946,10 @@ class BotManager:
     async def activated(self, chat, uid: int, months: int, amount: int, p=None, cur: str = "XTR"):
         core.extend_user(uid, months * 30)
         ex("UPDATE users SET suspended_until=0 WHERE id=?", (uid,))
+        try:
+            await growth.on_payment(self, uid, amount)
+        except Exception:
+            log.exception("referral bonus")
         request_sync()
         u = q1("SELECT * FROM users WHERE id=?", (uid,))
         if chat:

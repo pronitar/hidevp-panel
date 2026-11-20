@@ -117,6 +117,35 @@ EXACT = {
     "Код устарел. Запросите новый.": "The code has expired. Request a new one.",
     "Слишком много неверных попыток. Запросите новый код.": "Too many wrong attempts. Request a new code.",
     "Включите синхронизацию времени: timedatectl set-ntp true": "Enable time sync: timedatectl set-ntp true",
+    'Лимит трафика: укажите число': 'Traffic limit: enter a number',
+    'Неизвестный способ подсчёта устройств': 'Unknown device counting mode',
+    'MTProto-прокси работает с work-панелью 1.7.0 и новее — сначала обновите сервер': 'The MTProto proxy needs work panel 1.7.0 or newer — update the server first',
+    'Укажите ключи доступа': 'Enter the access keys',
+    'ЮKassa: shopId — это число из личного кабинета': 'YooKassa: shopId is a number from your account',
+    'ЮKassa: секретный ключ начинается с live_ или test_': 'YooKassa: the secret key starts with live_ or test_',
+    'ЮKassa: неверный e-mail для чеков': 'YooKassa: invalid e-mail for receipts',
+    'ЮKassa: укажите shopId и секретный ключ': 'YooKassa: enter the shopId and secret key',
+    'ЮMoney: номер кошелька — 11–20 цифр': 'YooMoney: the wallet number is 11–20 digits',
+    'ЮMoney: слишком длинный секрет': 'YooMoney: the secret is too long',
+    'ЮMoney: укажите номер кошелька и секрет для уведомлений': 'YooMoney: enter the wallet number and notification secret',
+    'Platega: неверный Merchant ID': 'Platega: invalid Merchant ID',
+    'Platega: неверный секретный ключ': 'Platega: invalid secret key',
+    'Platega: укажите Merchant ID и секретный ключ': 'Platega: enter the Merchant ID and secret key',
+    'ЮKassa, ЮMoney и Platega принимают только рубли — выберите валюту RUB': 'YooKassa, YooMoney and Platega accept rubles only — choose RUB',
+    'Способ оплаты не настроен': 'The payment method is not set up',
+    'Для ЮMoney проверка не нужна — платёж подтверждается уведомлением': 'YooMoney needs no check — the payment is confirmed by a notification',
+    'ЮKassa: для чека нужен e-mail в настройках или привязанный телефон пользователя': "YooKassa: a receipt needs an e-mail in the settings or the user's linked phone",
+    'ЮKassa: пустой ответ при создании платежа': 'YooKassa: empty response when creating the payment',
+    'Срок хранения устройства': 'Device retention',
+    'Пробный период': 'Trial period',
+    'Бонус за друга': 'Referrer bonus',
+    'Бонус другу': 'Friend bonus',
+    'Через сколько дней': 'Delay in days',
+    'Скидка': 'Discount',
+    'Срок промокода': 'Promo validity',
+    'Время недоступности': 'Downtime',
+    'Порог диска': 'Disk threshold',
+    'Порог памяти': 'Memory threshold',
     "Порт закрыт снаружи: откройте его в фаерволе хостера (security groups) и в ufw, "
     "или IP сервера блокируется — попробуйте другой порт/транспорт":
         "The port is closed from outside: open it in the hoster's firewall (security groups) and ufw, "
@@ -124,6 +153,13 @@ EXACT = {
 }
 
 PATTERNS = [
+    ('^(.+): укажите число$', '\\1: enter a number'),
+    ('^(.+): от (\\d+) до (\\d+)$', '\\1: from \\2 to \\3'),
+    ('^(ЮKassa|Platega): нет связи: (.*)$', '\\1: no connection: \\2'),
+    ('^(ЮKassa|Platega): неверные ключи доступа(.*)$', '\\1: wrong access keys\\2'),
+    ('^(ЮKassa|Platega): неожиданный ответ \\(HTTP (\\d+)\\)(.*)$', '\\1: unexpected response (HTTP \\2)\\3'),
+    ('^Platega: пустой ответ при создании платежа(.*)$', 'Platega: empty response when creating the payment\\1'),
+    ('^MTProto-прокси не запустился: (.*)$', 'The MTProto proxy did not start: \\1'),
     (r"^Протокол (\S+) требует work-панель 1\.1\.0 или новее — обновите её в разделе «Обновления»$",
      r"The \1 protocol requires work panel 1.1.0 or newer — update it in the Updates section"),
     (r"^Hysteria2 требует Xray ([\d.]+) или новее \(на сервере ([\d.]+)\) — обновите Xray: hidevp → Xray → Переустановить$",
@@ -178,6 +214,8 @@ PATTERNS = [
     (r"^(\d+) мс$", r"\1 ms"),
     (r"^Xray не запустился после применения настроек\.(.*)$", r"Xray failed to start after applying the config.\1"),
     (r" Порт занят другой программой: (.*?)\.", r" Port is used by another program: \1."),
+    (r"ЮKassa", "YooKassa"),
+    (r"ЮMoney", "YooMoney"),
 ]
 
 

@@ -61,6 +61,10 @@ PUBLIC_IP=$(curl -4 -s --max-time 8 https://api.ipify.org || true)
 
 mkdir -p "$DEST/data"
 cp "$SRC/node/agent.py" "$SRC/node/nodectl.py" "$SRC/node/requirements.txt" "$DEST/"
+if [ -d "$SRC/node/mtproto" ]; then
+  rm -rf "$DEST/mtproto.new" && cp -r "$SRC/node/mtproto" "$DEST/mtproto.new" && rm -rf "$DEST/mtproto" && mv "$DEST/mtproto.new" "$DEST/mtproto"
+  systemctl try-restart hidevp-mtproto >/dev/null 2>&1 || true
+fi
 [ -s "$SRC/master/app/release_key.pub" ] && cp "$SRC/master/app/release_key.pub" "$DEST/release_key.pub"
 progress 45
 REQ_SUM=$(sha256sum "$DEST/requirements.txt" | cut -c1-64)

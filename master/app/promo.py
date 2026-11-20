@@ -23,7 +23,7 @@ def applies_to(p: dict, months: int) -> bool:
 
 
 def check(p: dict | None, user: dict, months: int | None = None) -> str | None:
-    if not p:
+    if not p or (p.get("user_id") and p["user_id"] != user.get("id")):
         return "not_found"
     if not p["enabled"]:
         return "disabled"

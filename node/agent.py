@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.6.1"
+VERSION = "1.7.0"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -664,6 +664,124 @@ def apply_state(state: dict) -> dict:
     return {"changed": True, "restarted": True}
 
 
+MT_UNIT = "hidevp-mtproto"
+MT_CONF = DATA / "mtproto.py"
+MT_STATE = DATA / "mtproto.json"
+MT_DIR = BASE / "mtproto"
+MT_DOMAIN_RE = re.compile(r"(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]")
+
+
+def _v6_ok() -> bool:
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sk:
+            sk.bind(("::", 0))
+        return True
+    except OSError:
+        return False
+
+
+def mt_config_text(cfg: dict) -> str:
+    users = {k: v for k, v in (cfg.get("users") or {}).items()
+             if re.fullmatch(r"u\d{1,10}", str(k)) and re.fullmatch(r"[0-9a-f]{32}", str(v))}
+    if not users:
+        users = {"none": secrets.token_hex(16)}
+    lines = [f"PORT = {int(cfg['port'])}",
+             "USERS = " + json.dumps(users, sort_keys=True),
+             'MODES = {"classic": False, "secure": False, "tls": True}',
+             f"TLS_DOMAIN = {json.dumps(cfg['domain'])}",
+             "STATS_PRINT_PERIOD = 86400"]
+    if not _v6_ok():
+        lines.append("LISTEN_ADDR_IPV6 = None")
+    return "\n".join(lines) + "\n"
+
+
+def ensure_mtproto(cfg: dict | None):
+    unit = Path(f"/etc/systemd/system/{MT_UNIT}.service")
+    if not cfg or not cfg.get("port") or not MT_DOMAIN_RE.fullmatch(str(cfg.get("domain") or "")):
+        if unit.exists():
+            run(["systemctl", "disable", "--now", MT_UNIT])
+            unit.unlink()
+            run(["systemctl", "daemon-reload"])
+        with contextlib.suppress(OSError):
+            MT_STATE.unlink()
+        return
+    if not (MT_DIR / "mtprotoproxy.py").exists():
+        raise ValueError("MTProto: на сервере нет файлов прокси — обновите work-панель")
+    port = int(cfg["port"])
+    text = mt_config_text(cfg)
+    py = BASE / "venv" / "bin" / "python"
+    unit_text = (f"[Unit]\nDescription=HideVP MTProto\nAfter=network-online.target\n\n[Service]\n"
+                 f"WorkingDirectory={MT_DIR}\nExecStart={py if py.exists() else 'python3'} {MT_DIR / 'mtprotoproxy.py'} {MT_CONF}\n"
+                 f"Restart=always\nRestartSec=5\nStandardOutput=null\nLimitNOFILE=65536\n\n[Install]\nWantedBy=multi-user.target\n")
+    try:
+        prev = json.loads(MT_STATE.read_text()) if MT_STATE.exists() else {}
+    except ValueError:
+        prev = {}
+    restart = False
+    if not unit.exists() or unit.read_text() != unit_text:
+        unit.write_text(unit_text)
+        run(["systemctl", "daemon-reload"])
+        restart = True
+    if prev.get("port") != port or prev.get("domain") != cfg["domain"]:
+        restart = True
+    old = MT_CONF.read_text() if MT_CONF.exists() else ""
+    if old != text:
+        MT_CONF.write_text(text)
+        os.chmod(MT_CONF, 0o600)
+    active = run(["systemctl", "is-active", "--quiet", MT_UNIT]).returncode == 0
+    if restart or not active:
+        ufw_allow([(port, "tcp")])
+        run(["systemctl", "enable", MT_UNIT])
+        r = run(["systemctl", "restart", MT_UNIT])
+        time.sleep(1)
+        if r.returncode != 0 or run(["systemctl", "is-active", "--quiet", MT_UNIT]).returncode != 0:
+            log = run(["journalctl", "-u", MT_UNIT, "-n", "8", "--no-pager", "-o", "cat"]).stdout
+            raise ValueError("MTProto-прокси не запустился: " + log[-400:])
+    elif old != text:
+        run(["systemctl", "kill", "-s", "SIGUSR2", MT_UNIT])
+    MT_STATE.write_text(json.dumps({"port": port, "domain": cfg["domain"]}))
+
+
+def mt_running() -> bool:
+    return MT_STATE.exists() and run(["systemctl", "is-active", "--quiet", MT_UNIT]).returncode == 0
+
+
+def net_counters() -> dict:
+    rx = tx = 0
+    try:
+        for line in Path("/proc/net/dev").read_text().splitlines()[2:]:
+            name, data = line.split(":", 1)
+            name = name.strip()
+            if name == "lo" or name.startswith(("docker", "veth", "br-", "virbr", "tun", "wg", "awg")):
+                continue
+            v = data.split()
+            rx += int(v[0])
+            tx += int(v[8])
+        boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    except (OSError, ValueError, IndexError):
+        return {}
+    return {"rx": rx, "tx": tx, "boot": boot}
+
+
+def quick_health() -> dict:
+    import shutil
+    out = {"xray_running": xray_running()}
+    try:
+        du = shutil.disk_usage("/")
+        out["disk_pct"] = round(du.used / du.total * 100, 1) if du.total else 0
+        mem = {}
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            k, v = line.split(":", 1)
+            mem[k] = int(v.split()[0])
+        if mem.get("MemTotal"):
+            out["mem_pct"] = round((mem["MemTotal"] - mem.get("MemAvailable", 0)) / mem["MemTotal"] * 100, 1)
+    except (OSError, ValueError):
+        pass
+    if MT_STATE.exists():
+        out["mtproto_running"] = mt_running()
+    return out
+
+
 DIAG_LANG = {"v": "ru"}
 
 
@@ -768,6 +886,15 @@ def diagnose(lang: str = "ru") -> dict:
                            f"{len(inbounds)}, users: {len(state.get('users', []))}"),
                          L("Создайте VPN во вкладке «VPN» и выберите этот сервер",
                            "Create a VPN in the “VPN” tab and select this server"), warn=True))
+    if MT_STATE.exists():
+        try:
+            mt = json.loads(MT_STATE.read_text())
+        except ValueError:
+            mt = {}
+        mt_ok = mt_running() and _port_owners("tcp").get(int(mt.get("port") or 0)) not in (None, "")
+        checks.append(_check(L("MTProto-прокси работает", "MTProto proxy is running"), mt_ok,
+                             L(f"порт {mt.get('port')}, маскировка {mt.get('domain')}", f"port {mt.get('port')}, camouflage {mt.get('domain')}"),
+                             L("Посмотрите журнал: journalctl -u hidevp-mtproto -n 30", "Check the log: journalctl -u hidevp-mtproto -n 30")))
 
     try:
         socket.getaddrinfo("www.google.com", 443)
@@ -975,7 +1102,13 @@ async def put_state(request):
     lock = bool(state.pop("api_lock", False))
     ips = [request.client.host] if request.client else []
     ips += [a for a in state.pop("panel_ips", []) or [] if isinstance(a, str)]
+    mt = state.pop("mtproto", None)
     res = await asyncio.to_thread(apply_state, state)
+    try:
+        await asyncio.to_thread(ensure_mtproto, mt)
+    except Exception as e:
+        print("mtproto failed:", e, flush=True)
+        res = {**res, "mtproto_error": str(e)[:500]}
     try:
         await asyncio.to_thread(update_api_lock, lock, ips)
     except Exception as e:
@@ -990,7 +1123,7 @@ async def stats(request):
         scan_log()
         traffic = dict(PENDING)
         PENDING.clear()
-        return {"traffic": traffic, "online": online_ips(), "version": VERSION}
+        return {"traffic": traffic, "online": online_ips(), "version": VERSION, "net": net_counters(), **quick_health()}
     return JSONResponse(await asyncio.to_thread(work))
 
 

@@ -20,7 +20,7 @@ import hashlib
 import hmac
 import random
 
-from . import backup, botui, core, nodes, notices, payments, promo, qr, stats, stub, update
+from . import backup, botui, core, devices, growth, monitor, nodes, notices, payments, promo, qr, scan, stats, stub, update
 from .i18n import LANG, tr
 from .bot import manager as bot
 from .db import DEFAULT_SETTINGS, ex, get_setting, init_db, prices, q, q1, set_setting
@@ -66,6 +66,7 @@ def current_admin(request: Request):
     s = q1("SELECT * FROM sessions WHERE token=?", (_sess(tok),))
     if not s or s["created"] + SESSION_TTL < time.time():
         return None
+    scan.trust(client_ip(request))
     return q1("SELECT id, username FROM admins WHERE id=?", (s["admin_id"],))
 
 
@@ -221,8 +222,10 @@ def _vt(v: str) -> tuple:
 
 
 def node_out(n: dict) -> dict:
-    d = {k: v for k, v in n.items() if k not in ("api_key", "cert_pem", "socks_user", "socks_pass")}
+    d = {k: v for k, v in n.items() if k not in ("api_key", "cert_pem", "socks_user", "socks_pass", "mt_key", "net_last")}
     d["socks_on"] = bool(n.get("socks_port") and n.get("socks_pass"))
+    d["mt_on"] = bool(n.get("mt_port") and n.get("mt_key"))
+    d["traffic"] = monitor.traffic_out(n)
     d["info"] = json.loads(n.get("info") or "{}")
     d["error"] = tr(n.get("error") or "")
     d["flag"] = core.flag(n["country_code"])
@@ -318,6 +321,22 @@ async def node_one(request: Request):
             ex("UPDATE nodes SET name=? WHERE id=?", (str(d["name"]).strip()[:60], nid))
         if d.get("country_code"):
             ex("UPDATE nodes SET country_code=? WHERE id=?", (str(d["country_code"]).upper()[:2], nid))
+        if "tl_gb" in d:
+            try:
+                gb = max(0.0, min(1_000_000.0, float(d.get("tl_gb") or 0)))
+                day = max(1, min(31, int(d.get("tl_day") or 1)))
+            except (TypeError, ValueError):
+                raise ApiError("Лимит трафика: укажите число")
+            period = d.get("tl_period") if d.get("tl_period") in ("month", "day") else "month"
+            mode = d.get("tl_mode") if d.get("tl_mode") in ("both", "out") else "both"
+            reset = period != n.get("tl_period") or day != int(n.get("tl_day") or 1)
+            ex("UPDATE nodes SET tl_gb=?, tl_period=?, tl_day=?, tl_mode=? WHERE id=?", (gb, period, day, mode, nid))
+            if reset:
+                ex("UPDATE nodes SET tl_start=0, tl_over=0 WHERE id=?", (nid,))
+            elif gb <= 0 or (n.get("tl_used") or 0) < gb * core.GB:
+                ex("UPDATE nodes SET tl_over=0 WHERE id=?", (nid,))
+        if d.get("tl_reset"):
+            ex("UPDATE nodes SET tl_used=0, tl_over=0 WHERE id=?", (nid,))
         if d.get("key"):
             k = nodes.parse_key(d["key"])
             pem = await asyncio.to_thread(nodes.fetch_cert, k["host"], k["port"], k["fp"])
@@ -491,6 +510,8 @@ async def port_guard(node_id: int, port: int, vid: int | None, force: bool = Fal
             busy[int(v["port"])] = f"VPN «{v['name']}»"
     if protocol != "socks" and n.get("socks_port") and n.get("socks_pass"):
         busy[int(n["socks_port"])] = "SOCKS5"
+    if protocol != "mtproto" and n.get("mt_port") and n.get("mt_key"):
+        busy[int(n["mt_port"])] = "MTProto"
     free = [p for p in PORT_CANDIDATES if p not in busy and p != port]
 
     if port in busy:
@@ -754,6 +775,11 @@ async def user_one(request: Request):
         request_sync()
     d = core.user_public(q1("SELECT * FROM users WHERE id=?", (uid,)))
     d["links"] = core.user_links(d)
+    d["devices"] = devices.list_for(uid)
+    d["device_mode"] = devices.mode()
+    d["ref"] = growth.ref_stats(uid)
+    d["ref_by_name"] = (lambda r: (r["name"] or ("@" + r["tg_username"] if r["tg_username"] else f"#{r['id']}")) if r else "")(
+        q1("SELECT id, name, tg_username FROM users WHERE id=?", (d.get("ref_by") or 0,)))
     d["payments"] = q("SELECT p.*, pr.code AS promo_code FROM payments p LEFT JOIN promos pr ON pr.id=p.promo_id "
                       "WHERE p.user_id=? ORDER BY p.id DESC", (uid,))
     return ok(d)
@@ -773,6 +799,12 @@ async def user_action(request: Request):
         core.regen_user(uid)
     elif act == "unsuspend":
         ex("UPDATE users SET suspended_until=0 WHERE id=?", (uid,))
+    elif act == "devdel":
+        if d.get("all"):
+            devices.clear(uid)
+        else:
+            devices.remove(uid, int(d.get("id") or 0))
+        return ok()
     elif act == "message":
         u = q1("SELECT tg_id FROM users WHERE id=?", (uid,))
         if not u["tg_id"]:
@@ -818,7 +850,7 @@ async def promos_list(request: Request):
         pid = ex("INSERT INTO promos(code,discount,months,expires_at,max_uses,reusable,new_only,enabled,note,created) "
                  "VALUES(?,?,?,?,?,?,?,?,?,?)", (*v.values(), time.time()))
         return ok(promo_out(promo.get(pid)))
-    return ok([promo_out(p) for p in q("SELECT * FROM promos ORDER BY id DESC")])
+    return ok([promo_out(p) for p in q("SELECT * FROM promos WHERE IFNULL(kind,'')='' ORDER BY id DESC")])
 
 
 async def promo_one(request: Request):
@@ -915,7 +947,8 @@ def _pay_out(cfg: dict) -> dict:
             "assets": list(payments.CRYPTO_ASSETS), "stars_prices": {str(k): v for k, v in prices().items()},
             "plan_options": list(payments.PLAN_OPTIONS),
             "methods": {m: {"ru": n[0], "en": n[1], "ready": payments.configured(m, cfg)} for m, n in payments.METHOD_NAMES.items()},
-            "pending": payments.manual_pending(), "bot": bot_status(), "admins": admin_notify_state()}
+            "pending": payments.manual_pending(), "bot": bot_status(), "admins": admin_notify_state(),
+            "yoomoney_hook": (core.public_url() + "/pay/yoomoney") if core.public_url() else ""}
 
 
 async def pay_manual(request: Request):
@@ -1268,7 +1301,16 @@ async def notify_update(st: dict):
 SETTING_KEYS = ("panel_title", "public_url", "bot_token", "admin_tg_ids", "support",
                 "default_traffic_limit_gb", "default_device_limit", "tg_route", "tg_node_id", "tg_proxy", "lang",
                 "auto_select", "client_fragment", "stub_on", "stub_kind", "stub_title", "stub_html", "cabinet_path",
-                "hide_node_api") + tuple(k for k in DEFAULT_SETTINGS if k.startswith("app_"))
+                "hide_node_api") + tuple(k for k in DEFAULT_SETTINGS if k.startswith("app_")) + (
+                "device_mode", "hwid_ttl_days", "hwid_strict", "sub_hide_offline", "trial_days", "trial_phone", "ref_on",
+                "ref_days", "ref_new_days", "wb_on", "wb_days", "wb_discount", "wb_valid", "churn_on", "scan_detect",
+                "scan_ban", "scan_digest", "mon_on", "mon_down_min", "mon_disk", "mon_mem", "mon_xray")
+FLAG_KEYS = ("hwid_strict", "sub_hide_offline", "trial_phone", "ref_on", "wb_on", "churn_on", "scan_detect", "scan_ban",
+             "scan_digest", "mon_on", "mon_xray")
+INT_KEYS = {"hwid_ttl_days": (1, 365, "Срок хранения устройства"), "trial_days": (0, 90, "Пробный период"),
+            "ref_days": (0, 365, "Бонус за друга"), "ref_new_days": (0, 365, "Бонус другу"),
+            "wb_days": (1, 60, "Через сколько дней"), "wb_discount": (1, 100, "Скидка"), "wb_valid": (1, 60, "Срок промокода"),
+            "mon_down_min": (1, 120, "Время недоступности"), "mon_disk": (50, 99, "Порог диска"), "mon_mem": (50, 100, "Порог памяти")}
 APP_FLAGS = ("app_web", "app_ping_open", "app_pin", "app_expand", "app_hide", "app_expire", "app_hide_url")
 APP_CHOICES = {"app_ping": ("", "proxy", "proxy-head", "tcp", "icmp"), "app_sort": ("", "without", "ping", "alphabet"),
                "app_autoconnect": ("", "lastused", "lowestdelay", "random")}
@@ -1385,8 +1427,21 @@ async def settings(request: Request):
                         raise ApiError("Публичный адрес должен начинаться с http:// или https://")
                 if k.startswith("app_"):
                     v = validate_app_setting(k, v)
-                if k in ("auto_select", "client_fragment", "stub_on", "hide_node_api") + APP_FLAGS:
+                if k in ("auto_select", "client_fragment", "stub_on", "hide_node_api") + APP_FLAGS + FLAG_KEYS:
                     v = "1" if v in ("1", "true", "True") else "0"
+                if k in INT_KEYS:
+                    lo, hi, label = INT_KEYS[k]
+                    try:
+                        n = int(float(v or 0))
+                    except ValueError:
+                        raise ApiError(f"{tr(label)}: укажите число")
+                    if not lo <= n <= hi:
+                        raise ApiError(f"{tr(label)}: от {lo} до {hi}")
+                    v = str(n)
+                if k == "device_mode" and v not in ("ip", "hwid", "both"):
+                    raise ApiError("Неизвестный способ подсчёта устройств")
+                if k == "scan_ban" and v == "0" and get_setting("scan_ban") == "1":
+                    ex("UPDATE scanners SET banned_until=0")
                 if k == "stub_kind" and v not in stub.KINDS:
                     raise ApiError("Неизвестный вид страницы-заглушки")
                 if k == "stub_html":
@@ -1410,7 +1465,7 @@ async def settings(request: Request):
                 set_setting(k, v)
         if get_setting("stub_on") == "1" and not get_setting("cabinet_path"):
             set_setting("cabinet_path", "c-" + secrets.token_hex(4))
-        if "hide_node_api" in d:
+        if "hide_node_api" in d or "sub_hide_offline" in d:
             request_sync()
         if "prices" in d:
             pr = {str(int(m)): int(p) for m, p in d["prices"].items() if int(p) > 0}
@@ -1440,8 +1495,16 @@ async def subscription(request: Request):
     u = find_user_by_token(request.path_params["token"])
     if not u:
         return not_found(request)
-    links = core.user_links(u) if core.user_status(u) == "active" else []
+    dev = devices.check(u, dict(request.headers), client_ip(request)) if core.user_status(u) == "active" else "ok"
+    links = core.user_links(u) if core.user_status(u) == "active" and dev == "ok" else []
     headers = app_headers(u)
+    if dev != "ok":
+        en = core.user_lang(u) == "en"
+        msg = ((f"Device limit reached ({devices.limit_for(u)}). Unlink an old device on your page or in the bot."
+                if en else f"Достигнут лимит устройств ({devices.limit_for(u)}). Отвяжите старое устройство на своей странице или в боте.")
+               if dev == "limit" else
+               ("Open the subscription in Happ or INCY." if en else "Откройте подписку в приложении Happ или INCY."))
+        headers["announce"] = _b64h(msg)
     ua = request.headers.get("user-agent", "").lower()
     if (core.json_sub_on() and core.user_status(u) == "active" and links
             and (any(k in ua for k in ("happ", "incy")) or request.query_params.get("format") == "json")):
@@ -1465,12 +1528,19 @@ async def user_page(request: Request):
         "days_left": max(0, int((u["expires_at"] - time.time()) // core.DAY)) if u["expires_at"] else 0,
         "used": u["used_up"] + u["used_down"], "up": u["used_up"], "down": u["used_down"],
         "limit": u["traffic_limit"], "device_limit": u["device_limit"],
-        "devices": len(json.loads(u["online_ips"] or "[]")),
+        "devices": len(json.loads(u["online_ips"] or "[]")) if devices.mode() == "ip" else len(devices.list_for(u["id"])),
+        "device_mode": devices.mode(),
+        "device_list": [{"id": x["id"], "name": " ".join(y for y in (x["model"], x["os"]) if y).strip(),
+                         "last": x["last_seen"]} for x in devices.list_for(u["id"])] if devices.hwid_on() else [],
+        "mtproxy": [{"name": x["name"], "cc": (x["cc"] or "").lower() if re.fullmatch(r"[A-Za-z]{2}", x["cc"] or "") else "",
+                     "url": x["url"]} for x in core.mt_links(u)],
+        "ref": ({"link": growth.ref_link(bot.username, u), **growth.ref_stats(u["id"]),
+                 "days_bonus": growth._int("ref_days", 7)} if get_setting("ref_on", "0") == "1" and bot.username else None),
         "sub_url": core.sub_url(u), "happ": core.happ_link(u), "incy": core.incy_link(u), "qr": qr.svg(core.sub_url(u)),
         "logged_in": request.cookies.get(USER_COOKIE) == u["token"],
-        "servers": [{"name": r["name"], "flag": core.flag(r["cc"]), "cc": (r["cc"] or "").lower() if re.fullmatch(r"[A-Za-z]{2}", r["cc"] or "") else ""} for r in
-                    q("SELECT v.name, n.country_code cc FROM vpns v JOIN nodes n ON n.id=v.node_id "
-                      "WHERE v.enabled=1 ORDER BY v.sort, v.id")],
+        "servers": [{"name": core.render_name(r["name"], u, r["n_name"] or ""), "flag": core.flag(r["n_cc"]),
+                     "cc": (r["n_cc"] or "").lower() if re.fullmatch(r"[A-Za-z]{2}", r["n_cc"] or "") else ""}
+                    for r in core._vpn_rows()],
         "bot": bot.username, "support": get_setting("support"), "lang": core.user_lang(u),
         "plans": [] if u.get("forever") else site_plans(u),
         "notices": notices.public(u, core.user_lang(u)),
@@ -1480,6 +1550,106 @@ async def user_page(request: Request):
     page = (STATIC / "user.html").read_text(encoding="utf-8")
     page = page.replace("__DATA__", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
     return HTMLResponse(page, headers={"cache-control": "no-store"})
+
+
+async def user_device(request: Request):
+    u = find_user_by_token(request.path_params["token"])
+    if not u:
+        raise ApiError("Пользователь не найден", 404)
+    devices.remove(u["id"], int(request.path_params["id"]))
+    return ok()
+
+
+async def yoomoney_hook(request: Request):
+    from urllib.parse import parse_qsl
+    raw = (await request.body())[:20000]
+    form = dict(parse_qsl(raw.decode("utf-8", "ignore"), keep_blank_values=True))
+    cfg = payments.load()
+    if not payments.ym_verify(form, cfg["yoomoney"].get("secret", "")):
+        log.warning("yoomoney: bad signature from %s", client_ip(request))
+        return PlainTextResponse("bad signature", status_code=400)
+    row = q1("SELECT * FROM ext_payments WHERE provider='yoomoney' AND ext_id=?", (form.get("label", ""),))
+    if not row:
+        return PlainTextResponse("ok")
+    if form.get("codepro") == "true" or form.get("unaccepted") == "true":
+        return PlainTextResponse("ok")
+    try:
+        paid = int(round(float(form.get("withdraw_amount") or form.get("amount") or 0) * 100))
+    except ValueError:
+        paid = 0
+    await payments.ext_mark_paid(row, paid, bot.on_ext_paid)
+    return PlainTextResponse("ok")
+
+
+async def growth_api(request: Request):
+    keys = ("trial_days", "trial_phone", "ref_on", "ref_days", "ref_new_days", "wb_on", "wb_days", "wb_discount",
+            "wb_valid", "churn_on")
+    return ok({"settings": {k: get_setting(k) for k in keys}, "report": growth.report(), "bot": bot.username,
+               "churn_labels": {k: {"ru": v[0], "en": v[1]} for k, v in growth.CHURN.items()}})
+
+
+async def scanners_api(request: Request):
+    if request.method == "POST":
+        d = await body(request)
+        act, ip = d.get("action"), str(d.get("ip") or "")[:64]
+        if act == "unban":
+            scan.unban(ip)
+        elif act == "forget":
+            scan.forget(ip)
+        else:
+            raise ApiError("Неизвестное действие")
+    return ok({"items": scan.listing(), "detect": get_setting("scan_detect", "1"), "ban": get_setting("scan_ban", "0"),
+               "digest": get_setting("scan_digest", "0")})
+
+
+async def node_mtproto(request: Request):
+    n = _node_or_404(request)
+    if request.method == "GET":
+        return ok({"on": bool(n.get("mt_port") and n.get("mt_key")), "port": n.get("mt_port") or 0,
+                   "domain": n.get("mt_domain") or "", "agent_ok": _agent_ok(n, "1.7.0"),
+                   "agent": json.loads(n.get("info") or "{}").get("version", ""),
+                   "users": len(active_users()) if n.get("mt_port") else 0})
+    if request.method == "DELETE":
+        ex("UPDATE nodes SET mt_port=0 WHERE id=?", (n["id"],))
+        request_sync()
+        return ok()
+    d = await body(request)
+    try:
+        port = int(d.get("port") or 0)
+    except (TypeError, ValueError):
+        port = 0
+    if not 1 <= port <= 65535:
+        raise ApiError("Укажите порт от 1 до 65535")
+    domain = str(d.get("domain") or "").strip().lower()
+    if not HOST_RE.fullmatch(domain):
+        raise ApiError("Укажите домен для маскировки: только латиница, цифры, точки и дефисы")
+    if not _agent_ok(n, "1.7.0"):
+        raise ApiError("MTProto-прокси работает с work-панелью 1.7.0 и новее — сначала обновите сервер")
+    if port != int(n.get("mt_port") or 0):
+        await port_guard(n["id"], port, None, bool(d.get("force")), "mtproto")
+    key = n.get("mt_key") or ""
+    if d.get("regen") or not key:
+        key = secrets.token_hex(16)
+    ex("UPDATE nodes SET mt_port=?, mt_domain=?, mt_key=? WHERE id=?", (port, domain, key, n["id"]))
+    request_sync()
+    return ok({"on": True, "port": port, "domain": domain})
+
+
+async def pay_check_ext(request: Request):
+    d = await body(request)
+    prov = d.get("provider")
+    if prov not in ("yookassa", "platega"):
+        raise ApiError("Неизвестное действие")
+    cfg = payments.load()
+    for k, v in (d.get("config") or {}).items():
+        if k in cfg[prov] and isinstance(v, str) and v.strip():
+            cfg[prov][k] = v.strip()
+    if not payments.configured(prov, cfg):
+        raise ApiError("Укажите ключи доступа")
+    try:
+        return ok({"result": await asyncio.to_thread(payments.check_ext, prov, cfg)})
+    except payments.PayError as e:
+        raise ApiError(str(e))
 
 
 async def user_lang(request: Request):
@@ -1511,6 +1681,8 @@ def bot_link() -> str:
 
 
 def not_found(request: Request = None):
+    if request is not None:
+        scan.miss(client_ip(request), request.url.path, request.headers.get("user-agent", ""))
     if core.stub_on():
         return HTMLResponse(stub.NGINX_404, status_code=404, headers={"server": "nginx"})
     return PlainTextResponse("Not Found", status_code=404)
@@ -1521,6 +1693,8 @@ async def not_found_handler(request: Request, exc):
 
 
 async def home(request: Request):
+    if scan.banned(client_ip(request)):
+        return HTMLResponse(stub.NGINX_404, status_code=404, headers={"server": "nginx"})
     if core.stub_on():
         page = stub.render(get_setting("stub_kind", "personal"), get_setting("stub_title", ""), get_setting("stub_html", ""))
         return HTMLResponse(page, headers={"server": "nginx", "cache-control": "public, max-age=600"})
@@ -1528,7 +1702,7 @@ async def home(request: Request):
 
 
 async def cabinet(request: Request):
-    if core.stub_on() and request.path_params["slug"] == get_setting("cabinet_path"):
+    if core.stub_on() and request.path_params["slug"] == get_setting("cabinet_path") and not scan.banned(client_ip(request)):
         return cabinet_page(request)
     return not_found(request)
 
@@ -1550,6 +1724,8 @@ async def auth_request(request: Request):
     if not phone:
         raise ApiError("Введите номер телефона полностью")
     ip = client_ip(request)
+    if scan.banned(ip):
+        raise ApiError("Слишком много запросов. Попробуйте через час.", 429)
     _prune(AUTH_HITS, 3600)
     _prune(CODES, CODE_TTL)
     if not _rate("ip:" + ip, 10, 3600) or not _rate("all", 300, 3600):
@@ -1704,6 +1880,10 @@ def build_app() -> Starlette:
         Route(base + "/api/nodes/{id:int}/update-log", api(node_update_log)),
         Route(base + "/api/docs", api(docs)),
         Route(base + "/api/nodes/{id:int}/socks", api(node_socks), methods=["GET", "PUT", "DELETE"]),
+        Route(base + "/api/nodes/{id:int}/mtproto", api(node_mtproto), methods=["GET", "PUT", "DELETE"]),
+        Route(base + "/api/growth", api(growth_api)),
+        Route(base + "/api/scanners", api(scanners_api), methods=["GET", "POST"]),
+        Route(base + "/api/payments/check-ext", api(pay_check_ext), methods=["POST"]),
         Route(base + "/api/nodes/{id:int}/{action}", api(node_action), methods=["POST"]),
         Route(base + "/api/reload", api(reload_all), methods=["POST"]),
         Route(base + "/api/vpns", api(vpns_list), methods=["GET", "POST"]),
@@ -1740,6 +1920,8 @@ def build_app() -> Starlette:
         Route("/u/{token}", user_page),
         Route("/u/{token}/lang", user_lang, methods=["POST"]),
         Route("/u/{token}/pay", api(user_pay, auth=False), methods=["POST"]),
+        Route("/u/{token}/device/{id:int}", api(user_device, auth=False), methods=["DELETE"]),
+        Route("/pay/yoomoney", yoomoney_hook, methods=["POST"]),
         Route("/", home),
         Mount("/assets/flags", StaticFiles(directory=STATIC / "flags"), name="flags"),
         Route("/api/auth/request", api(auth_request, auth=False), methods=["POST"]),
@@ -1756,7 +1938,11 @@ def build_app() -> Starlette:
         bk_task = asyncio.create_task(backup_loop())
         cr_task = asyncio.create_task(payments.crypto_loop(bot.on_crypto_paid))
         nt_task = asyncio.create_task(notices.loop(bot))
+        extra = [asyncio.create_task(payments.ext_loop(bot.on_ext_paid)), asyncio.create_task(growth.loop(bot)),
+                 asyncio.create_task(scan.loop(bot))]
         yield
+        for x in extra:
+            x.cancel()
         task.cancel()
         upd_task.cancel()
         bk_task.cancel()
