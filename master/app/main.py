@@ -1581,6 +1581,54 @@ async def yoomoney_hook(request: Request):
     return PlainTextResponse("ok")
 
 
+def _public_v4(a: str) -> bool:
+    import ipaddress
+    try:
+        ip = ipaddress.ip_address(a)
+    except ValueError:
+        return False
+    return ip.version == 4 and ip.is_global
+
+
+async def node_ip_hook(request: Request):
+    if not _rate("nodeip:" + client_ip(request), 20, 3600):
+        return JSONResponse({"error": "rate"}, status_code=429)
+    d = await body(request)
+    old, new = str(d.get("old") or ""), str(d.get("host") or "")
+    try:
+        port, ts = int(d.get("port") or 0), int(d.get("ts") or 0)
+    except (TypeError, ValueError):
+        return not_found(request)
+    if not _public_v4(new) or abs(time.time() - ts) > 600:
+        return not_found(request)
+    node = None
+    for n in q("SELECT * FROM nodes WHERE port=?", (port,)):
+        calc = hmac.new(n["api_key"].encode(), f"{old}|{new}|{port}|{ts}".encode(), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(calc, str(d.get("sig") or "")):
+            node = n
+            break
+    if not node:
+        return not_found(request)
+    if node["host"] != new:
+        probe = {**node, "id": -node["id"] - 1000, "host": new}
+        try:
+            await nodes.call(probe, "GET", "/api/ping", timeout=10)
+        except nodes.NodeError as e:
+            nodes.forget(probe["id"])
+            log.warning("node %s announced %s but is not reachable there: %s", node["id"], new, e)
+            return JSONResponse({"error": "unreachable"}, status_code=409)
+        nodes.forget(probe["id"])
+        ex("UPDATE nodes SET host=?, ip=? WHERE id=?", (new, new, node["id"]))
+        nodes.forget(node["id"])
+        log.info("node %s ip %s -> %s", node["id"], node["host"], new)
+        asyncio.create_task(refresh_node(node["id"]))
+        request_sync()
+        await bot.notify_admins((f"🌐 Server “{node['name']}” changed IP: {node['host']} → {new}. Subscriptions update when users refresh them."
+                                 if get_setting("lang", "ru") == "en" else
+                                 f"🌐 Сервер «{node['name']}» сменил IP: {node['host']} → {new}. Подписки обновятся, когда пользователи обновят их в приложении."))
+    return ok()
+
+
 async def growth_api(request: Request):
     keys = ("trial_days", "trial_phone", "ref_on", "ref_days", "ref_new_days", "wb_on", "wb_days", "wb_discount",
             "wb_valid", "churn_on")
@@ -1922,6 +1970,7 @@ def build_app() -> Starlette:
         Route("/u/{token}/pay", api(user_pay, auth=False), methods=["POST"]),
         Route("/u/{token}/device/{id:int}", api(user_device, auth=False), methods=["DELETE"]),
         Route("/pay/yoomoney", yoomoney_hook, methods=["POST"]),
+        Route("/api/node/ip", node_ip_hook, methods=["POST"]),
         Route("/", home),
         Mount("/assets/flags", StaticFiles(directory=STATIC / "flags"), name="flags"),
         Route("/api/auth/request", api(auth_request, auth=False), methods=["POST"]),

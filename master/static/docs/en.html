@@ -65,6 +65,7 @@ journalctl -u xray -f           # Xray log</pre>
 <li><b>SOCKS5</b> — a login/password proxy for the administrator only: a <code>socks5://</code> link, an app import link and a Telegram proxy link. It is never added to user subscriptions. Traffic is not encrypted — use it for your own tasks.</li>
 <li><b>Edit</b> — name, address, country. <b>Delete</b> removes the server from the panel (the server itself is untouched).</li></ul>
 <p>The work panel management port is closed to everyone except the master panel's IP by default. If the master panel uses a domain, after its IP changes just update the A record: servers check the domain every 3 minutes and open the port for the new address by themselves (work panel 1.7.1). If the panel uses an IP, on each server run: <code>hidevp</code> → Xray → "Open the work panel API".</p>
+<p>If a server's own IP changes (including the server that runs the master panel), work panel 1.7.2 notices it within 5 minutes and reports it to the master panel. The panel checks that the server answers at the new address, updates it, pushes the settings and notifies administrators. Subscription links update when users refresh the subscription in the app. This needs a domain or an unchanged IP in the panel's public address.</p>
 </section>
 
 <section id="vpn"><h2>VPN connections and encryption</h2>

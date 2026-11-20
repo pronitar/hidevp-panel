@@ -108,6 +108,7 @@ def desired_state(node, users) -> dict:
         "api_lock": get_setting("hide_node_api", "1") == "1",
         "panel_ips": sorted(_panel_ips()),
         "panel_host": _panel_host(),
+        "panel_url": core.public_url(),
         "socks": socks,
         "inbounds": [{k: (v.get(k) or ("vless" if k == "protocol" else "")) if k not in ("id", "port") else v[k]
                       for k in INBOUND_KEYS} for v in vpns],

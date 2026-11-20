@@ -22,7 +22,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
-VERSION = "1.7.1"
+VERSION = "1.7.2"
 
 BASE = Path(os.environ.get("NODE_HOME", "/opt/hidevp-panel/node"))
 DATA = BASE / "data"
@@ -1098,6 +1098,89 @@ def follow_master():
         update_api_lock(True, new + ips, lc["host"])
 
 
+MASTER_FILE = DATA / "master.json"
+
+
+def _is_public_v4(a: str) -> bool:
+    import ipaddress
+    try:
+        ip = ipaddress.ip_address(a)
+    except ValueError:
+        return False
+    return ip.version == 4 and ip.is_global
+
+
+def local_public_ips() -> list[str]:
+    out = []
+    for line in run(["ip", "-4", "-o", "addr", "show", "scope", "global"], timeout=10).stdout.splitlines():
+        m = re.search(r"\binet (\d+\.\d+\.\d+\.\d+)/", line)
+        if m and _is_public_v4(m.group(1)) and m.group(1) not in out:
+            out.append(m.group(1))
+    return out
+
+
+def outside_ip() -> str:
+    for url in ("https://api.ipify.org", "https://ipv4.icanhazip.com"):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=8) as r:
+                a = r.read().decode().strip()
+            if _is_public_v4(a):
+                return a
+        except Exception:
+            continue
+    return ""
+
+
+def my_public_ip(current: str) -> str:
+    ips = local_public_ips()
+    if current in ips:
+        return current
+    if len(ips) == 1:
+        return ips[0]
+    return outside_ip()
+
+
+def announce_ip():
+    conf = node_conf()
+    host = str(conf.get("host") or "")
+    if not _is_public_v4(host):
+        return
+    try:
+        url = str(json.loads(MASTER_FILE.read_text()).get("url") or "")
+    except (OSError, ValueError):
+        return
+    if not re.fullmatch(r"https?://[^\s/]+", url):
+        return
+    new = my_public_ip(host)
+    if not new or new == host:
+        return
+    ts = int(time.time())
+    sig = hmac.new(conf["api_key"].encode(), f"{host}|{new}|{conf['port']}|{ts}".encode(), hashlib.sha256).hexdigest()
+    body = json.dumps({"old": host, "host": new, "port": conf["port"], "ts": ts, "sig": sig}).encode()
+    req = urllib.request.Request(url + "/api/node/ip", data=body, method="POST",
+                                 headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=20, context=ssl.create_default_context()) as r:
+            ok = r.status == 200 and json.loads(r.read() or b"{}").get("ok")
+    except Exception as e:
+        print("ip change: master not reachable:", e, flush=True)
+        return
+    if ok:
+        conf["host"] = new
+        p = DATA / "node.json"
+        p.write_text(json.dumps(conf, indent=2))
+        os.chmod(p, 0o600)
+        print("public ip changed:", host, "->", new, flush=True)
+
+
+async def ip_watcher():
+    await asyncio.sleep(60)
+    while True:
+        with contextlib.suppress(Exception):
+            await asyncio.to_thread(announce_ip)
+        await asyncio.sleep(300)
+
+
 async def lock_watcher():
     while True:
         await asyncio.sleep(180)
@@ -1137,6 +1220,11 @@ async def put_state(request):
     ips = [request.client.host] if request.client else []
     ips += [a for a in state.pop("panel_ips", []) or [] if isinstance(a, str)]
     host = str(state.pop("panel_host", "") or "")
+    purl = str(state.pop("panel_url", "") or "")
+    if re.fullmatch(r"https?://[^\s/]+", purl):
+        with contextlib.suppress(OSError):
+            if not MASTER_FILE.exists() or json.loads(MASTER_FILE.read_text() or "{}").get("url") != purl:
+                MASTER_FILE.write_text(json.dumps({"url": purl}))
     mt = state.pop("mtproto", None)
     res = await asyncio.to_thread(apply_state, state)
     try:
@@ -1336,11 +1424,13 @@ async def lifespan(app):
             await asyncio.to_thread(apply_api_lock, True, lc.get("allow", []))
     task = asyncio.create_task(log_watcher())
     lw = asyncio.create_task(lock_watcher())
+    iw = asyncio.create_task(ip_watcher())
     with contextlib.suppress(Exception):
         await asyncio.to_thread(follow_master)
     yield
     task.cancel()
     lw.cancel()
+    iw.cancel()
 
 
 app = Starlette(routes=[

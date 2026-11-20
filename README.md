@@ -300,6 +300,7 @@ Start with **Servers → Check**: it shows the cause of most VPN problems.
 |---|---|
 | 502 in the browser | `journalctl -u hidevp-panel -n 30 --no-pager` |
 | Server is "Offline" | On the node: `systemctl status hidevp-node`; check that the API port is open at the hosting provider. Cards open instantly; each server's data loads separately |
+| A server's IP changed | Work panel 1.7.2 reports the new IP to the master panel within 5 minutes. On older versions: update the server (`hidevp` → "Update the panel") — the new version reports the IP itself |
 | "Port is used by another program" | Usually an old x-ui: `x-ui stop && systemctl disable x-ui`, then "Reload panel". Or choose another port |
 | Xray does not start | The error is shown on the server card; `hidevp` → Xray → fix permissions or reinstall |
 | The master panel can't reach a server after its IP changed | With a domain: update the A record, servers reopen access by themselves within minutes (work panel 1.7.1). Without a domain: on the server `hidevp` → Xray → "Open the work panel API" |
